@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin SRL - Iași</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function CRMMigdalin() {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [clients, setClients] = useState([]);
+            const [sales, setSales] = useState([]);
+            const [communications, setCommunications] = useState([]);
+            const [showClientModal, setShowClientModal] = useState(false);
+            const [showSaleModal, setShowSaleModal] = useState(false);
+            const [showCommModal, setShowCommModal] = useState(false);
+            const [editingClient, setEditingClient] = useState(null);
+            const [editingSale, setEditingSale] = useState(null);
+
+            useEffect(() => {
+                const savedClients = localStorage.getItem('migdalin_clients');
+                const savedSales = localStorage.getItem('migdalin_sales');
+                const savedComms = localStorage.getItem('migdalin_communications');
+                
+                if (savedClients) setClients(JSON.parse(savedClients));
+                if (savedSales) setSales(JSON.parse(savedSales));
+                if (savedComms) setCommunications(JSON.parse(savedComms));
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('migdalin_clients', JSON.stringify(clients));
+            }, [clients]);
+
+            useEffect(() => {
+                localStorage.setItem('migdalin_sales', JSON.stringify(sales));
+            }, [sales]);
+
+            useEffect(() => {
+                localStorage.setItem('migdalin_communications', JSON.stringify(communications));
+            }, [communications]);
+
+            const calculateKPIs = () => {
+                const totalClients = clients.length;
+                const activeClients = clients.filter(c => c.status === 'Activ').length;
+                const wonSales = sales.filter(s => s.status === 'Câștigată').reduce((sum, s) => sum + parseFloat(s.value || 0), 0);
+                const pendingSales = sales.filter(s => s.status === 'În negociere').length;
+                const conversionRate = sales.length > 0 ? ((sales.filter(s => s.status === 'Câștigată').length / sales.length) * 100).toFixed(1) : 0;
+                
+                const currentMonth = new Date().getMonth();
+                const monthlySales = sales.filter(s => {
+                    if (!s.date) return false;
+                    const parts = s.date.split('.');
+                    if (parts.length < 2) return false;
+                    const month = parseInt(parts[1]) - 1;
+                    return month === currentMonth && s.status === 'Câștigată';
+                }).reduce((sum, s) => sum + parseFloat(s.value || 0), 0);
+
+                return { totalClients, activeClients, wonSales, pendingSales, conversionRate, monthlySales };
+            };
+
+            const kpis = calculateKPIs();
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
+                        <div className="container mx-auto px-4 py-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
+                                        <span className="text-2xl">📊</span>
+                                    </div>
+                                    <div>
+                                        <h1 className="text-2xl font-bold">CRM Migdalin SRL</h1>
+                                        <p className="text-blue-100 text-sm">Iași - Sistem Management Clienți</p>
+                                    </div>
+                                </div>
+                                <div className="text-right text-sm">
+                                    <p>{new Date().toLocaleDateString('ro-RO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <nav className="bg-white shadow-md border-b">
+                        <div className="container mx-auto px-4">
+                            <div className="flex space-x-1 overflow-x-auto">
+                                {[
+                                    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
+                                    { id: 'clients', label: 'Clienți', icon: '👥' },
+                                    { id: 'sales', label: 'Vânzări', icon: '🛒' },
+                                    { id: 'communications', label: 'Comunicări', icon: '💬' },
+                                    { id: 'reports', label: 'Rapoarte & KPI', icon: '📈' }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`px-4 py-3 font-medium whitespace-nowrap ${
+                                            activeTab === tab.id
+                                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                                : 'text-gray-600 hover:text-blue-600'
+                                        }`}
+                                    >
+                                        <span className="mr-2">{tab.icon}</span>{tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+
+                    <main className="container mx-auto px-4 py-8">
+                        {activeTab === 'dashboard' && <Dashboard kpis={kpis} clients={clients} sales={sales} communications={communications} />}
+                        {activeTab === 'clients' && <Clients clients={clients} setClients={setClients} showModal={showClientModal} setShowModal={setShowClientModal} editing={editingClient} setEditing={setEditingClient} />}
+                        {activeTab === 'sales' && <Sales sales={sales} setSales={setSales} clients={clients} showModal={showSaleModal} setShowModal={setShowSaleModal} editing={editingSale} setEditing={setEditingSale} />}
+                        {activeTab === 'communications' && <Communications communications={communications} setCommunications={setCommunications} clients={clients} showModal={showCommModal} setShowModal={setShowCommModal} />}
+                        {activeTab === 'reports' && <Reports kpis={kpis} clients={clients} sales={sales} />}
+                    </main>
+                </div>
+            );
+        }
+
+        function Dashboard({ kpis, clients, sales, communications }) {
+            const recentSales = sales.slice(-5).reverse();
+            const recentComms = communications.slice(-5).reverse();
+
+            return (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-500 text-sm font-medium">Total Clienți</p>
+                                    <p className="text-4xl font-bold text-gray-800 mt-2">{kpis.totalClients}</p>
+                                    <p className="text-green-600 text-sm mt-2 flex items-center">
+                                        <span className="mr-1">✓</span>{kpis.activeClients} activi
+                                    </p>
+                                </div>
+                                <div className="text-5xl">👥</div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-500 text-sm font-medium">Vânzări Câștigate</p>
+                                    <p className="text-4xl font-bold text-gray-800 mt-2">{kpis.wonSales.toLocaleString('ro-RO')} RON</p>
+                                    <p className="text-gray-600 text-sm mt-2">Conversie: {kpis.conversionRate}%</p>
+                                </div>
+                                <div className="text-5xl">💰</div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500 hover:shadow-xl transition-shadow">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-500 text-sm font-medium">Oferte în Negociere</p>
+                                    <p className="text-4xl font-bold text-gray-800 mt-2">{kpis.pendingSales}</p>
+                                    <p className="text-gray-600 text-sm mt-2">Necesită urmărire</p>
+                                </div>
+                                <div className="text-5xl">🤝</div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition-shadow">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-gray-500 text-sm font-medium">Vânzări Luna Curentă</p>
+                                    <p className="text-4xl font-bold text-gray-800 mt-2">{kpis.monthlySales.toLocaleString('ro-RO')} RON</p>
+                                    <p className="text-gray-600 text-sm mt-2">
+                                        {new Date().toLocaleDateString('ro-RO', { month: 'long' })}
+                                    </p>
+                                </div>
+                                <div className="text-5xl">📅</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <h3 className="text-xl font-bold mb-4 flex items-center">
+                                <span className="mr-2">⏰</span>Vânzări Recente
+                            </h3>
+                            {recentSales.length > 0 ? (
+                                <div className="space-y-3">
+                                    {recentSales.map(sale => {
+                                        const client = clients.find(c => c.id === sale.clientId);
+                                        return (
+                                            <div key={sale.id} className="border-l-4 border-blue-500 pl-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="font-semibold text-gray-900">{sale.product}</p>
+                                                        <p className="text-sm text-gray-600">{client?.name || 'Client necunoscut'}</p>
+                                                    </div>
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                        sale.status === 'Câștigată' ? 'bg-green-100 text-green-800' :
+                                                        sale.status === 'În negociere' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-red-100 text-red-800'
+                                                    }`}>
+                                                        {sale.status}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-gray-500 mt-1">{sale.value} RON • {sale.date}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 text-center py-8">Nu există vânzări înregistrate</p>
+                            )}
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <h3 className="text-xl font-bold mb-4 flex items-center">
+                                <span className="mr-2">💬</span>Comunicări Recente
+                            </h3>
+                            {recentComms.length > 0 ? (
+                                <div className="space-y-3">
+                                    {recentComms.map(comm => {
+                                        const client = clients.find(c => c.id === comm.clientId);
+                                        return (
+                                            <div key={comm.id} className="border-l-4 border-purple-500 pl-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="font-semibold text-sm text-gray-900">{comm.type}</p>
+                                                        <p className="text-sm text-gray-600">{client?.name || 'Client necunoscut'}</p>
+                                                    </div>
+                                                    <span className="text-xs text-gray-500">{comm.date}</span>
+                                                </div>
+                                                <p className="text-sm text-gray-700 mt-1">{comm.notes.substring(0, 60)}...</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 text-center py-8">Nu există comunicări înregistrate</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function Clients({ clients, setClients, showModal, setShowModal, editing, setEditing }) {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterStatus, setFilterStatus] = useState('Toate');
+
+            const filteredClients = clients.filter(client => {
+                const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    client.company.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesStatus = filterStatus === 'Toate' || client.status === filterStatus;
+                return matchesSearch && matchesStatus;
+            });
+
+            const handleDelete = (id) => {
+                if (confirm('Sigur doriți să ștergeți acest client?')) {
+                    setClients(clients.filter(c => c.id !== id));
+                }
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800">Gestionare Clienți</h2>
+                                <p className="text-gray-600 mt-1">Total: {filteredClients.length} clienți</p>
+                            </div>
+                            <button onClick={() => { setEditing(null); setShowModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all flex items-center">
+                                <span className="mr-2">➕</span>Adaugă Client Nou
+                            </button>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-4 mb-6">
+                            <div className="flex-1">
+                                <input type="text" placeholder="Caută după nume, email sau companie..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" />
+                            </div>
+                            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
+                                <option>Toate</option>
+                                <option>Activ</option>
+                                <option>Inactiv</option>
+                                <option>Potențial</option>
+                            </select>
+                        </div>
+
+                        <div className="overflow-x-auto rounded-lg border border-gray-200">
+                            <table className="w-full">
+                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Client</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Data</th>
+                                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acțiuni</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {filteredClients.map(client => (
+                                        <tr key={client.id} className="hover:bg-blue-50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div>
+                                                    <p className="font-semibold text-gray-900">{client.name}</p>
+                                                    <p className="text-sm text-gray-500">{client.company}</p>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm">
+                                                    <p className="text-gray-900">{client.phone}</p>
+                                                    <p className="text-gray-500">{client.email}</p>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                                    client.status === 'Activ' ? 'bg-green-100 text-green-800' :
+                                                    client.status === 'Inactiv' ? 'bg-red-100 text-red-800' :
+                                                    'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                    {client.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{client.dateAdded}</td>
+                                            <td className="px-6 py-4 text-right space-x-3">
+                                                <button onClick={() => { setEditing(client); setShowModal(true); }} className="text-blue-600 hover:text-blue-800 font-medium transition-colors" title="Editează">✏️</button>
+                                                <button onClick={() => handleDelete(client.id)} className="text-red-600 hover:text-red-800 font-medium transition-colors" title="Șterge">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {filteredClients.length === 0 && (
+                                <div className="text-center py-16 text-gray-500">
+                                    <div className="text-6xl mb-4">👥</div>
+                                    <p className="text-lg">Nu există clienți care să corespundă criteriilor de căutare</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {showModal && <ClientModal clients={clients} setClients={setClients} setShowModal={setShowModal} editing={editing} />}
+                </div>
+            );
+        }
+
+        function ClientModal({ clients, setClients, setShowModal, editing }) {
+            const [formData, setFormData] = useState(editing || {
+                name: '', company: '', email: '', phone: '', address: '', status: 'Potențial', notes: ''
+            });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (editing) {
+                    setClients(clients.map(c => c.id === editing.id ? { ...formData, id: editing.id, dateAdded: editing.dateAdded } : c));
+                } else {
+                    setClients([...clients, { ...formData, id: Date.now(), dateAdded: new Date().toLocaleDateString('ro-RO') }]);
+                }
+                setShowModal(false);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="p-6 border-b sticky top-0 bg-white rounded-t-xl">
+                            <h3 className="text-2xl font-bold text-gray-800">{editing ? '✏️ Editare Client' : '➕ Adaugă Client Nou'}</h3>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Nume Contact *</label>
+                                    <input type="text" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="ex. Ion Popescu" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Companie *</label>
+                                    <input type="text" required value={formData.company} onChange={(e) => setFormData({...formData, company: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="ex. SC Example SRL" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Email *</label>
+                                    <input type="email" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="contact@exemplu.ro" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Telefon *</label>
+                                    <input type="tel" required value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="0740 123 456" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Status</label>
+                                    <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
+                                        <option>Potențial</option>
+                                        <option>Activ</option>
+                                        <option>Inactiv</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Adresă</label>
+                                    <input type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="Str. Exemplu nr. 1, Iași" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-2 text-gray-700">Notițe</label>
+                                <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} rows="3" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="Adaugă notițe despre client..."></textarea>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-medium transition-colors">Anulează</button>
+                                <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md hover:shadow-lg transition-all">{editing ? 'Salvează Modificările' : 'Adaugă Client'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function Sales({ sales, setSales, clients, showModal, setShowModal, editing, setEditing }) {
+            const [filterStatus, setFilterStatus] = useState('Toate');
+            const filteredSales = sales.filter(sale => filterStatus === 'Toate' || sale.status === filterStatus);
+
+            const handleDelete = (id) => {
+                if (confirm('Sigur doriți să ștergeți această vânzare?')) {
+                    setSales(sales.filter(s => s.id !== id));
+                }
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800">Urmărire Vânzări & Oferte</h2>
+                                <p className="text-gray-600 mt-1">Total: {filteredSales.length} vânzări</p>
+                            </div>
+                            <button onClick={() => { setEditing(null); setShowModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all flex items-center">
+                                <span className="mr-2">➕</span>Adaugă Vânzare
+                            </button>
+                        </div>
+                        <div className="mb-6">
+                            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
+                                <option>Toate</option>
+                                <option>În negociere</option>
+                                <option>Câștigată</option>
+                                <option>Pierdută</option>
+                            </select>
+                        </div>
+                        <div className="overflow-x-auto rounded-lg border border-gray-200">
+                            <table className="w-full">
+                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Produs/Serviciu</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Client</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Valoare</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Data</th>
+                                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acțiuni</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {filteredSales.map(sale => {
+                                        const client = clients.find(c => c.id === sale.clientId);
+                                        return (
+                                            <tr key={sale.id} className="hover:bg-blue-50 transition-colors">
+                                                <td className="px-6 py-4"><p className="font-semibold text-gray-900">{sale.product}</p></td>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm text-gray-900 font-medium">{client?.name || 'Client necunoscut'}</p>
+                                                    <p className="text-sm text-gray-500">{client?.company}</p>
+                                                </td>
+                                                <td className="px-6 py-4"><p className="font-bold text-gray-900">{parseFloat(sale.value).toLocaleString('ro-RO')} RON</p></td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                                        sale.status === 'Câștigată' ? 'bg-green-100 text-green-800' :
+                                                        sale.status === 'În negociere' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-red-100 text-red-800'
+                                                    }`}>{sale.status}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-500">{sale.date}</td>
+                                                <td className="px-6 py-4 text-right space-x-3">
+                                                    <button onClick={() => { setEditing(sale); setShowModal(true); }} className="text-blue-600 hover:text-blue-800 font-medium transition-colors" title="Editează">✏️</button>
+                                                    <button onClick={() => handleDelete(sale.id)} className="text-red-600 hover:text-red-800 font-medium transition-colors" title="Șterge">🗑️</button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                            {filteredSales.length === 0 && (
+                                <div className="text-center py-16 text-gray-500">
+                                    <div className="text-6xl mb-4">🛒</div>
+                                    <p className="text-lg">Nu există vânzări înregistrate</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {showModal && <SaleModal sales={sales} setSales={setSales} clients={clients} setShowModal={setShowModal} editing={editing} />}
+                </div>
+            );
+        }
+
+        function SaleModal({ sales, setSales, clients, setShowModal, editing }) {
+            const [formData, setFormData] = useState(editing || {
+                clientId: '', product: '', value: '', status: 'În negociere', notes: ''
+            });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (editing) {
+                    setSales(sales.map(s => s.id === editing.id ? { ...formData, id: editing.id, date: editing.date } : s));
+                } else {
+                    setSales([...sales, { ...formData, id: Date.now(), date: new Date().toLocaleDateString('ro-RO') }]);
+                }
+                setShowModal(false);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
+                        <div className="p-6 border-b bg-white rounded-t-xl">
+                            <h3 className="text-2xl font-bold text-gray-800">{editing ? '✏️ Editare Vânzare' : '➕ Adaugă Vânzare Nouă'}</h3>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Client *</label>
+                                    <select required value={formData.clientId} onChange={(e) => setFormData({...formData, clientId: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
+                                        <option value="">Selectează client...</option>
+                                        {clients.map(client => (
+                                            <option key={client.id} value={client.id}>{client.name} - {client.company}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Produs/Serviciu *</label>
+                                    <input type="text" required value={formData.product} onChange={(e) => setFormData({...formData, product: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="ex. Pachet Premium" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Valoare (RON) *</label>
+                                    <input type="number" required value={formData.value} onChange={(e) => setFormData({...formData, value: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="ex. 5000" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Status</label>
+                                    <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
+                                        <option>În negociere</option>
+                                        <option>Câștigată</option>
+                                        <option>Pierdută</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-2 text-gray-700">Notițe</label>
+                                <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} rows="3" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="Detalii despre ofertă..."></textarea>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-medium transition-colors">Anulează</button>
+                                <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md hover:shadow-lg transition-all">{editing ? 'Salvează' : 'Adaugă'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function Communications({ communications, setCommunications, clients, showModal, setShowModal }) {
+            const [filterType, setFilterType] = useState('Toate');
+            const filteredComms = communications.filter(comm => filterType === 'Toate' || comm.type === filterType);
+
+            const handleDelete = (id) => {
+                if (confirm('Sigur doriți să ștergeți această comunicare?')) {
+                    setCommunications(communications.filter(c => c.id !== id));
+                }
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800">Istoric Comunicări</h2>
+                                <p className="text-gray-600 mt-1">Total: {filteredComms.length} comunicări</p>
+                            </div>
+                            <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:shadow-lg transition-all flex items-center">
+                                <span className="mr-2">➕</span>Adaugă Comunicare
+                            </button>
+                        </div>
+                        <div className="mb-6">
+                            <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
+                                <option>Toate</option>
+                                <option>Email</option>
+                                <option>Telefon</option>
+                                <option>Întâlnire</option>
+                                <option>Altele</option>
+                            </select>
+                        </div>
+                        <div className="space-y-4">
+                            {filteredComms.map(comm => {
+                                const client = clients.find(c => c.id === comm.clientId);
+                                const icon = comm.type === 'Email' ? '📧' : comm.type === 'Telefon' ? '📞' : comm.type === 'Întâlnire' ? '📅' : '💬';
+                                const bgColor = comm.type === 'Email' ? 'bg-blue-50' : comm.type === 'Telefon' ? 'bg-green-50' : comm.type === 'Întâlnire' ? 'bg-purple-50' : 'bg-gray-50';
+                                
+                                return (
+                                    <div key={comm.id} className={`border-2 rounded-xl p-5 hover:shadow-lg transition-all ${bgColor}`}>
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex items-start gap-4">
+                                                <div className="text-4xl">{icon}</div>
+                                                <div>
+                                                    <p className="font-bold text-gray-900 text-lg">{comm.type}</p>
+                                                    <p className="text-sm text-gray-600 font-medium">{client?.name || 'Client necunoscut'} - {client?.company}</p>
+                                                    <p className="text-sm text-gray-500 mt-1">{comm.date}</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => handleDelete(comm.id)} className="text-red-600 hover:text-red-800 transition-colors text-xl" title="Șterge">🗑️</button>
+                                        </div>
+                                        <div className="ml-16">
+                                            <p className="text-gray-700 leading-relaxed">{comm.notes}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {filteredComms.length === 0 && (
+                            <div className="text-center py-16 text-gray-500">
+                                <div className="text-6xl mb-4">💬</div>
+                                <p className="text-lg">Nu există comunicări înregistrate</p>
+                            </div>
+                        )}
+                    </div>
+                    {showModal && <CommunicationModal communications={communications} setCommunications={setCommunications} clients={clients} setShowModal={setShowModal} />}
+                </div>
+            );
+        }
+
+        function CommunicationModal({ communications, setCommunications, clients, setShowModal }) {
+            const [formData, setFormData] = useState({ clientId: '', type: 'Email', notes: '' });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                setCommunications([...communications, { ...formData, id: Date.now(), date: new Date().toLocaleDateString('ro-RO') }]);
+                setShowModal(false);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
+                        <div className="p-6 border-b bg-white rounded-t-xl">
+                            <h3 className="text-2xl font-bold text-gray-800">➕ Adaugă Comunicare Nouă</h3>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Client *</label>
+                                    <select required value={formData.clientId} onChange={(e) => setFormData({...formData, clientId: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
+                                        <option value="">Selectează client...</option>
+                                        {clients.map(client => (
+                                            <option key={client.id} value={client.id}>{client.name} - {client.company}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Tip Comunicare *</label>
+                                    <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors">
+                                        <option>Email</option>
+                                        <option>Telefon</option>
+                                        <option>Întâlnire</option>
+                                        <option>Altele</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-2 text-gray-700">Detalii Comunicare *</label>
+                                <textarea required value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} rows="4" className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors" placeholder="Descrieți subiectul discuției, rezultatele, următorii pași..."></textarea>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-medium transition-colors">Anulează</button>
+                                <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md hover:shadow-lg transition-all">Adaugă</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function Reports({ kpis, clients, sales }) {
+            const monthlyData = {};
+            sales.forEach(sale => {
+                if (sale.status === 'Câștigată' && sale.date) {
+                    const dateParts = sale.date.split('.');
+                    if (dateParts.length >= 2) {
+                        const month = dateParts[1] + '/' + dateParts[2];
+                        monthlyData[month] = (monthlyData[month] || 0) + parseFloat(sale.value);
+                    }
+                }
+            });
+
+            const months = Object.keys(monthlyData).sort();
+            const values = months.map(m => monthlyData[m]);
+
+            const salesByStatus = {
+                'În negociere': sales.filter(s => s.status === 'În negociere').length,
+                'Câștigată': sales.filter(s => s.status === 'Câștigată').length,
+                'Pierdută': sales.filter(s => s.status === 'Pierdută').length
+            };
+
+            const topClients = {};
+            sales.forEach(sale => {
+                if (sale.status === 'Câștigată') {
+                    const client = clients.find(c => c.id === sale.clientId);
+                    if (client) {
+                        topClients[client.name] = (topClients[client.name] || 0) + parseFloat(sale.value);
+                    }
+                }
+            });
+
+            const sortedClients = Object.entries(topClients).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                            <span className="mr-3">📊</span>KPI Director Vânzări
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="border-l-4 border-blue-500 pl-4 bg-blue-50 p-4 rounded-lg">
+                                <p className="text-gray-600 text-sm font-medium">Rată de Conversie</p>
+                                <p className="text-4xl font-bold text-blue-600 mt-2">{kpis.conversionRate}%</p>
+                                <p className="text-sm text-gray-600 mt-2">Oferte câștigate / Total oferte</p>
+                            </div>
+                            <div className="border-l-4 border-green-500 pl-4 bg-green-50 p-4 rounded-lg">
+                                <p className="text-gray-600 text-sm font-medium">Valoare Medie Vânzare</p>
+                                <p className="text-4xl font-bold text-green-600 mt-2">
+                                    {sales.filter(s => s.status === 'Câștigată').length > 0 
+                                        ? (kpis.wonSales / sales.filter(s => s.status === 'Câștigată').length).toLocaleString('ro-RO', {maximumFractionDigits: 0})
+                                        : 0} RON
+                                </p>
+                                <p className="text-sm text-gray-600 mt-2">Per tranzacție</p>
+                            </div>
+                            <div className="border-l-4 border-yellow-500 pl-4 bg-yellow-50 p-4 rounded-lg">
+                                <p className="text-gray-600 text-sm font-medium">Pipeline Activ</p>
+                                <p className="text-4xl font-bold text-yellow-600 mt-2">
+                                    {sales.filter(s => s.status === 'În negociere').reduce((sum, s) => sum + parseFloat(s.value || 0), 0).toLocaleString('ro-RO')} RON
+                                </p>
+                                <p className="text-sm text-gray-600 mt-2">{kpis.pendingSales} oferte în lucru</p>
+                            </div>
+                            <div className="border-l-4 border-purple-500 pl-4 bg-purple-50 p-4 rounded-lg">
+                                <p className="text-gray-600 text-sm font-medium">Creștere Bază Clienți</p>
+                                <p className="text-4xl font-bold text-purple-600 mt-2">{kpis.activeClients}</p>
+                                <p className="text-sm text-gray-600 mt-2">Clienți activi</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <h3 className="text-lg font-bold mb-4 flex items-center"><span className="mr-2">📊</span>Distribuție Vânzări pe Status</h3>
+                            <div className="space-y-4">
+                                {Object.entries(salesByStatus).map(([status, count]) => {
+                                    const total = sales.length || 1;
+                                    const percentage = ((count / total) * 100).toFixed(1);
+                                    return (
+                                        <div key={status}>
+                                            <div className="flex justify-between mb-2">
+                                                <span className="text-sm font-semibold">{status}</span>
+                                                <span className="text-sm text-gray-600 font-medium">{count} ({percentage}%)</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                                <div className={`h-3 rounded-full transition-all duration-500 ${
+                                                    status === 'Câștigată' ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                                                    status === 'În negociere' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                                                    'bg-gradient-to-r from-red-400 to-red-600'
+                                                }`} style={{width: `${percentage}%`}}></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <h3 className="text-lg font-bold mb-4 flex items-center"><span className="mr-2">🏆</span>Top 5 Clienți după Valoare</h3>
+                            <div className="space-y-3">
+                                {sortedClients.map(([name, value], index) => (
+                                    <div key={name} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg hover:shadow-md transition-shadow">
+                                        <div className="flex items-center gap-3">
+                                            <span className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-lg shadow-md ${
+                                                index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
+                                                index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
+                                                index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
+                                                'bg-gradient-to-br from-blue-400 to-blue-600'
+                                            }`}>{index + 1}</span>
+                                            <span className="font-semibold text-gray-800">{name}</span>
+                                        </div>
+                                        <span className="text-green-600 font-bold text-lg">{value.toLocaleString('ro-RO')} RON</span>
+                                    </div>
+                                ))}
+                                {sortedClients.length === 0 && <p className="text-center text-gray-500 py-8">Nu există date disponibile</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                        <h3 className="text-lg font-bold mb-4 flex items-center"><span className="mr-2">📈</span>Evoluție Vânzări pe Luni</h3>
+                        {months.length > 0 ? (
+                            <div className="space-y-4">
+                                {months.map((month, index) => {
+                                    const maxValue = Math.max(...values);
+                                    const percentage = (values[index] / maxValue) * 100;
+                                    return (
+                                        <div key={month}>
+                                            <div className="flex justify-between mb-2">
+                                                <span className="text-sm font-semibold">{month}</span>
+                                                <span className="text-sm font-bold text-green-600">{values[index].toLocaleString('ro-RO')} RON</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-4 shadow-inner">
+                                                <div className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500" style={{width: `${percentage}%`}}></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500 py-8">Nu există vânzări câștigate pentru a genera graficul</p>
+                        )}
+                    </div>
+
+                    <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 rounded-xl shadow-2xl p-8 text-white">
+                        <h3 className="text-2xl font-bold mb-6">📊 Rezumat Global</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
+                                <p className="text-blue-100 text-sm font-medium">Total Clienți</p>
+                                <p className="text-4xl font-bold mt-2">{kpis.totalClients}</p>
+                            </div>
+                            <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
+                                <p className="text-blue-100 text-sm font-medium">Vânzări Totale</p>
+                                <p className="text-4xl font-bold mt-2">{kpis.wonSales.toLocaleString('ro-RO', {maximumFractionDigits: 0})} RON</p>
+                            </div>
+                            <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
+                                <p className="text-blue-100 text-sm font-medium">Oferte Active</p>
+                                <p className="text-4xl font-bold mt-2">{kpis.pendingSales}</p>
+                            </div>
+                            <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur-sm">
+                                <p className="text-blue-100 text-sm font-medium">Rata Succes</p>
+                                <p className="text-4xl font-bold mt-2">{kpis.conversionRate}%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<CRMMigdalin />, document.getElementById('root'));
+    </script>
+</body>
+</html>
