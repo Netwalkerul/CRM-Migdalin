@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Formular Client</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+    <!-- HEADER -->
+    <header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="window.location.href='index.html'"
+                        class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm transition-all">
+                    ← Listă Clienți
+                </button>
+                <h1 id="page-title" class="text-xl font-bold">➕ Client Nou</h1>
+            </div>
+            <div class="flex gap-3">
+                <button id="btn-save"
+                        class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium shadow transition-all">
+                    💾 Salvează
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- TAB-URI -->
+    <div class="bg-white shadow-md border-b sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 overflow-x-auto">
+            <div class="flex gap-1 py-2" id="tab-bar">
+                <!-- tab-urile sunt generate dinamic -->
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4 py-6">
+        <div id="form-content">
+            <!-- Conținut generat dinamic per tab -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp }     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged }
+                                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp, updateDoc, arrayUnion }
+                                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey:            "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+            authDomain:        "crm-migdalin.firebaseapp.com",
+            projectId:         "crm-migdalin",
+            storageBucket:     "crm-migdalin.firebasestorage.app",
+            messagingSenderId: "498188629124",
+            appId:             "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+        };
+
+        const app  = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        // ─── STATE ───────────────────────────────────────────────────────────────
+        let currentUser     = null;
+        let currentUserData = null;
+        let clientId        = null;  // null = client nou
+        let clientData      = {};    // datele existente (pentru editare)
+        let activeTab       = 0;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        clientId = urlParams.get('id') || null;
+
+        // ─── HELPERS ─────────────────────────────────────────────────────────────
+        const el    = id => document.getElementById(id);
+        const toast = (msg, ok = true) => {
+            const t = el('toast');
+            t.textContent = msg;
+            t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium
+                           ${ok ? 'bg-green-600' : 'bg-red-600'}`;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3500);
+        };
+
+        const inp = id => el(id)?.value?.trim() || '';
+
+        // ─── TABS ────────────────────────────────────────────────────────────────
+        const TABS = [
+            { id: 'identificare',    label: '🏢 Identificare'     },
+            { id: 'contact',         label: '📞 Contact'          },
+            { id: 'logistica',       label: '🚚 Logistică'        },
+            { id: 'structura',       label: '🏗️ Structură Internă' },
+            { id: 'comercial',       label: '💼 Date Comerciale'  },
+        ];
+
+        function renderTabs() {
+            el('tab-bar').innerHTML = TABS.map((t, i) => `
+                <button onclick="switchTab(${i})" id="tab-btn-${i}"
+                        class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all
+                               ${i === activeTab
+                                 ? 'bg-blue-600 text-white shadow'
+                                 : 'text-gray-600 hover:bg-gray-100'}">
+                    ${t.label}
+                </button>`).join('');
+        }
+
+        window.switchTab = (i) => {
+            activeTab = i;
+            renderTabs();
+            renderTabContent();
+        };
+
+        // ─── AUTH ─────────────────────────────────────────────────────────────────
+        onAuthStateChanged(auth, async user => {
+            if (!user) { window.location.href = '../auth/index.html'; return; }
+            currentUser = user;
+            const snap  = await getDoc(doc(db, 'users', user.uid));
+            if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+            currentUserData = snap.data();
+
+            if (clientId) {
+                el('page-title').textContent = '✏️ Editare Client';
+                const cSnap = await getDoc(doc(db, 'clients', clientId));
+                if (cSnap.exists()) clientData = cSnap.data();
+            }
+
+            renderTabs();
+            renderTabContent();
+        });
+
+        // ─── RENDER CONȚINUT TAB ──────────────────────────────────────────────────
+        function renderTabContent() {
+            const tab = TABS[activeTab].id;
+            const c   = clientData;
+
+            const card = (title, content) => `
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-5 pb-2 border-b">${title}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">${content}</div>
+                </div>`;
+
+            const field = (label, id, type = 'text', value = '', opts = '') => `
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">${label}</label>
+                    <input type="${type}" id="${id}" value="${esc(value)}" ${opts}
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors text-sm" />
+                </div>`;
+
+            const fieldFull = (label, id, type = 'text', value = '', opts = '') => `
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">${label}</label>
+                    <input type="${type}" id="${id}" value="${esc(value)}" ${opts}
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors text-sm" />
+                </div>`;
+
+            const select = (label, id, options, value = '') => `
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">${label}</label>
+                    <select id="${id}" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors text-sm">
+                        <option value="">— Selectează —</option>
+                        ${options.map(o => `<option ${value===o?'selected':''}>${o}</option>`).join('')}
+                    </select>
+                </div>`;
+
+            const textarea = (label, id, value = '', rows = 3) => `
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">${label}</label>
+                    <textarea id="${id}" rows="${rows}"
+                              class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors text-sm">${esc(value)}</textarea>
+                </div>`;
+
+            let html = '';
+
+            if (tab === 'identificare') {
+                html = card('🏢 Date de Identificare', `
+                    ${field('Nume Companie *', 'companyName', 'text', c.companyName || '', 'required')}
+                    ${field('CUI / CIF *', 'cui', 'text', c.cui || '', 'required')}
+                    ${field('Nr. Reg. Comerțului (J...)', 'regCom', 'text', c.regCom || '')}
+                    ${select('Forma Juridică', 'legalForm',
+                        ['SRL','SA','PFA','RA','SNC','SCS','Regie Autonomă','Instituție Publică'], c.legalForm || '')}
+                    ${field('Cod CAEN', 'caenCode', 'text', c.caenCode || '')}
+                    ${field('An Înființare', 'foundedYear', 'number', c.foundedYear || '')}
+                    ${select('Dimensiune Companie', 'companySize',
+                        ['Micro (1-9 ang.)','Mică (10-49 ang.)','Mijlocie (50-249 ang.)','Mare (250+ ang.)'], c.companySize || '')}
+                    ${select('Segment', 'segment',
+                        ['Alimentar','Non-alimentar','Servicii','Producție','Distribuție','Retail','HoReCa','Instituțional'], c.segment || '')}
+                    ${field('Sub-segment', 'subSegment', 'text', c.subSegment || '')}
+                    ${select('Sursa Clientului', 'sourceType',
+                        ['Referință','Web / Online','Apel telefonic','Vizită spontană','Alt agent','Eveniment / Târg','Altele'], c.sourceType || '')}
+                `);
+
+            } else if (tab === 'contact') {
+                html = card('👤 Contact Principal', `
+                    ${field('Nume Contact Principal *', 'contactName', 'text', c.contactName || '', 'required')}
+                    ${field('Funcție', 'contactRole', 'text', c.contactRole || '')}
+                    ${field('Telefon Mobil *', 'phoneMobile', 'tel', c.phoneMobile || '', 'required')}
+                    ${field('Telefon Fix', 'phoneFixed', 'tel', c.phoneFixed || '')}
+                    ${field('Email Principal *', 'emailMain', 'email', c.emailMain || '', 'required')}
+                    ${field('Site Web', 'website', 'url', c.website || '')}
+                `) +
+                card('👤 Contact Secundar', `
+                    ${field('Nume Contact Secundar', 'contact2Name', 'text', c.contact2Name || '')}
+                    ${field('Funcție', 'contact2Role', 'text', c.contact2Role || '')}
+                    ${field('Telefon', 'contact2Phone', 'tel', c.contact2Phone || '')}
+                    ${field('Email', 'contact2Email', 'email', c.contact2Email || '')}
+                `) +
+                card('📍 Adresă și Locație', `
+                    ${fieldFull('Adresă Sediu Social', 'addressHQ', 'text', c.addressHQ || '')}
+                    ${field('Oraș *', 'city', 'text', c.city || '', 'required')}
+                    ${field('Județ *', 'county', 'text', c.county || '', 'required')}
+                    ${field('Zonă Comercială', 'commercialZone', 'text', c.commercialZone || '')}
+                `);
+
+            } else if (tab === 'logistica') {
+                html = card('🚚 Date Logistice', `
+                    ${fieldFull('Adresă Livrare (dacă diferă de sediu)', 'addressDelivery', 'text', c.addressDelivery || '')}
+                    ${field('Persoană Contact Livrare', 'deliveryContact', 'text', c.deliveryContact || '')}
+                    ${field('Telefon Contact Livrare', 'deliveryPhone', 'tel', c.deliveryPhone || '')}
+                    ${field('Program Lucru / Ore Livrare', 'workingHours', 'text', c.workingHours || '')}
+                    ${select('Tip Transport Preferat', 'transportType',
+                        ['Propriu (al clientului)','Al nostru','Curier','Mixt'], c.transportType || '')}
+                    ${select('Depozit Propriu', 'hasWarehouse',
+                        ['Da','Nu'], c.hasWarehouse || '')}
+                `);
+
+            } else if (tab === 'structura') {
+                html = card('🏗️ Structură Internă CRM', `
+                    ${field('Agent Vânzări Responsabil', 'agentName', 'text',
+                        clientId ? (c.agentName || '') : (currentUserData.name || currentUserData.email))}
+                    ${field('Director Zonal', 'directorZonalName', 'text', c.directorZonalName || '')}
+                    ${field('Depozit de Aprovizionare', 'supplyDepot', 'text', c.supplyDepot || '')}
+                    ${field('Rută / Circuit Vizită', 'visitRoute', 'text', c.visitRoute || '')}
+                    ${select('Frecvența Vizitelor', 'visitFrequency',
+                        ['Săptămânal','Bilunar','Lunar','La cerere'], c.visitFrequency || '')}
+                    ${field('Data Atribuirii', 'assignedDate', 'date', c.assignedDate || today())}
+                `);
+
+            } else if (tab === 'comercial') {
+                html = card('💼 Date Comerciale', `
+                    ${select('Status Client *', 'status',
+                        ['Activ','Inactiv','Potențial','Blocat'], c.status || 'Potențial')}
+                    ${select('Tip Client', 'clientType',
+                        ['En-gros','Retail','HoReCa','Instituție','Producător'], c.clientType || '')}
+                    ${select('Nivel Prioritate', 'priority',
+                        ['A - Strategic','B','C'], c.priority || '')}
+                    ${select('Monedă', 'currency',
+                        ['RON','EUR','USD'], c.currency || 'RON')}
+                    ${field('Discount Standard (%)', 'discount', 'number', c.discount || '')}
+                    ${field('Limită Credit (RON)', 'creditLimit', 'number', c.creditLimit || '')}
+                    ${field('Termen de Plată (zile)', 'paymentDays', 'number', c.paymentDays || '30')}
+                    ${select('Modalitate Plată', 'paymentMethod',
+                        ['Cash','OP (Ordin de Plată)','CEC','Bilet la Ordin','Mixt'], c.paymentMethod || '')}
+                    ${textarea('Condiții Comerciale Speciale', 'specialTerms', c.specialTerms || '')}
+                    ${textarea('Notițe Generale', 'notes', c.notes || '')}
+                `);
+            }
+
+            el('form-content').innerHTML = html;
+        }
+
+        // ─── COLECTARE DATE DIN FORMULAR ──────────────────────────────────────────
+        function collectFormData() {
+            const g = id => el(id)?.value?.trim() || '';
+            return {
+                // Identificare
+                companyName:    g('companyName'),
+                cui:            g('cui'),
+                regCom:         g('regCom'),
+                legalForm:      g('legalForm'),
+                caenCode:       g('caenCode'),
+                foundedYear:    g('foundedYear'),
+                companySize:    g('companySize'),
+                segment:        g('segment'),
+                subSegment:     g('subSegment'),
+                sourceType:     g('sourceType'),
+                // Contact
+                contactName:    g('contactName'),
+                contactRole:    g('contactRole'),
+                phoneMobile:    g('phoneMobile'),
+                phoneFixed:     g('phoneFixed'),
+                emailMain:      g('emailMain'),
+                website:        g('website'),
+                contact2Name:   g('contact2Name'),
+                contact2Role:   g('contact2Role'),
+                contact2Phone:  g('contact2Phone'),
+                contact2Email:  g('contact2Email'),
+                addressHQ:      g('addressHQ'),
+                city:           g('city'),
+                county:         g('county'),
+                commercialZone: g('commercialZone'),
+                // Logistică
+                addressDelivery:g('addressDelivery'),
+                deliveryContact:g('deliveryContact'),
+                deliveryPhone:  g('deliveryPhone'),
+                workingHours:   g('workingHours'),
+                transportType:  g('transportType'),
+                hasWarehouse:   g('hasWarehouse'),
+                // Structură internă
+                agentId:        clientId ? (clientData.agentId || currentUser.uid) : currentUser.uid,
+                agentName:      g('agentName') || currentUserData.name,
+                directorZonalName: g('directorZonalName'),
+                directorZonalId:   clientData.directorZonalId || currentUserData.managerId || null,
+                supplyDepot:    g('supplyDepot'),
+                visitRoute:     g('visitRoute'),
+                visitFrequency: g('visitFrequency'),
+                assignedDate:   g('assignedDate'),
+                // Comercial
+                status:         g('status') || 'Potențial',
+                clientType:     g('clientType'),
+                priority:       g('priority'),
+                currency:       g('currency') || 'RON',
+                discount:       g('discount'),
+                creditLimit:    g('creditLimit'),
+                paymentDays:    g('paymentDays'),
+                paymentMethod:  g('paymentMethod'),
+                specialTerms:   g('specialTerms'),
+                notes:          g('notes'),
+            };
+        }
+
+        // ─── SALVARE ─────────────────────────────────────────────────────────────
+        el('btn-save').addEventListener('click', async () => {
+            // Validare câmpuri obligatorii
+            const required = [
+                ['companyName', 'Identificare → Nume Companie'],
+                ['cui',         'Identificare → CUI'],
+                ['contactName', 'Contact → Nume Contact Principal'],
+                ['phoneMobile', 'Contact → Telefon Mobil'],
+                ['emailMain',   'Contact → Email Principal'],
+                ['city',        'Contact → Oraș'],
+                ['county',      'Contact → Județ'],
+            ];
+
+            // Ne asigurăm că toate tab-urile au fost vizitate cel puțin o dată
+            // Forțăm render pe fiecare tab pentru a colecta datele
+            const originalTab = activeTab;
+            const data = {};
+
+            for (let i = 0; i < TABS.length; i++) {
+                activeTab = i;
+                renderTabContent();
+                Object.assign(data, collectFormData());
+            }
+
+            // Restaurăm tab-ul activ
+            activeTab = originalTab;
+            renderTabs();
+            renderTabContent();
+
+            // Validare
+            for (const [field, label] of required) {
+                if (!data[field]) {
+                    toast(`⚠️ Câmp obligatoriu lipsă: ${label}`, false);
+                    return;
+                }
+            }
+
+            el('btn-save').disabled    = true;
+            el('btn-save').textContent = 'Se salvează...';
+
+            try {
+                if (clientId) {
+                    // EDITARE
+                    const changes = [];
+                    for (const key of Object.keys(data)) {
+                        const oldVal = String(clientData[key] || '');
+                        const newVal = String(data[key] || '');
+                        if (oldVal !== newVal) {
+                            changes.push({ field: key, from: oldVal, to: newVal });
+                        }
+                    }
+
+                    await updateDoc(doc(db, 'clients', clientId), {
+                        ...data,
+                        updatedAt:   serverTimestamp(),
+                        updatedBy:   currentUser.uid,
+                        updatedName: currentUserData.name || currentUserData.email,
+                        auditLog:    arrayUnion({
+                            timestamp: new Date().toISOString(),
+                            user:      currentUserData.name || currentUserData.email,
+                            action:    'editare',
+                            changes:   changes
+                        })
+                    });
+                    toast('✅ Client actualizat cu succes!');
+                } else {
+                    // CREARE
+                    await addDoc(collection(db, 'clients'), {
+                        ...data,
+                        createdAt:   serverTimestamp(),
+                        createdBy:   currentUser.uid,
+                        createdName: currentUserData.name || currentUserData.email,
+                        updatedAt:   serverTimestamp(),
+                        updatedBy:   currentUser.uid,
+                        auditLog:    [{
+                            timestamp: new Date().toISOString(),
+                            user:      currentUserData.name || currentUserData.email,
+                            action:    'creare',
+                            changes:   []
+                        }]
+                    });
+                    toast('✅ Client adăugat cu succes!');
+                }
+
+                setTimeout(() => window.location.href = 'index.html', 1200);
+
+            } catch (e) {
+                toast('❌ Eroare la salvare: ' + e.message, false);
+            } finally {
+                el('btn-save').disabled    = false;
+                el('btn-save').textContent = '💾 Salvează';
+            }
+        });
+
+        // ─── UTILS ───────────────────────────────────────────────────────────────
+        function esc(str) {
+            return String(str || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+        function today() {
+            return new Date().toISOString().split('T')[0];
+        }
+    </script>
+</body>
+</html>
