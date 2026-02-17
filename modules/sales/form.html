@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Ofertă</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Liste Vânzări</button>
+            <h1 id="page-title" class="text-xl font-bold">➕ Ofertă Nouă</h1>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-save"
+                    class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium shadow">
+                💾 Salvează
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- DATE GENERALE -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-5 pb-2 border-b">📋 Date Generale</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Număr Ofertă</label>
+                <input id="offerNumber" type="text" readonly
+                       class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm font-mono font-semibold text-blue-700" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Status *</label>
+                <select id="status" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                    <option>Prospect</option>
+                    <option>Ofertă trimisă</option>
+                    <option>Negociere</option>
+                    <option>Câștigată</option>
+                    <option>Pierdută</option>
+                    <option>Anulată</option>
+                </select>
+            </div>
+
+            <!-- Client search -->
+            <div class="md:col-span-2">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Client *</label>
+                <div class="relative">
+                    <input id="client-search" type="text" placeholder="Caută client după nume..."
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+                    <div id="client-dropdown"
+                         class="hidden absolute z-20 w-full bg-white border border-gray-200 rounded-xl shadow-xl mt-1 max-h-48 overflow-y-auto"></div>
+                </div>
+                <input id="clientId"   type="hidden" />
+                <input id="clientName" type="hidden" />
+                <p id="client-selected" class="text-sm text-green-600 font-medium mt-1 hidden">✅ Client selectat</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Data Ofertei *</label>
+                <input id="offerDate" type="date"
+                       class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Data Valabilitate</label>
+                <input id="expiryDate" type="date"
+                       class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Data Închidere Estimată</label>
+                <input id="closeDate" type="date"
+                       class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+            </div>
+
+            <div id="loss-reason-wrap" class="hidden">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Motiv Pierdere</label>
+                <select id="lossReason" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                    <option value="">— Selectează —</option>
+                    <option>Preț prea mare</option>
+                    <option>Concurență</option>
+                    <option>Client nu mai are nevoie</option>
+                    <option>Buget insuficient</option>
+                    <option>Întârziere livrare</option>
+                    <option>Calitate produse</option>
+                    <option>Altele</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRODUSE -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+        <div class="flex items-center justify-between mb-5 pb-2 border-b">
+            <h3 class="text-lg font-bold text-gray-800">📦 Produse / Servicii</h3>
+            <button id="btn-add-product"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                ➕ Adaugă Produs
+            </button>
+        </div>
+
+        <!-- Header tabel produse -->
+        <div class="hidden md:grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 uppercase px-2 mb-2">
+            <div class="col-span-4">Produs / Serviciu</div>
+            <div class="col-span-1 text-center">UM</div>
+            <div class="col-span-2 text-right">Preț Unitar</div>
+            <div class="col-span-1 text-center">Cant.</div>
+            <div class="col-span-1 text-center">Disc.%</div>
+            <div class="col-span-2 text-right">Total</div>
+            <div class="col-span-1"></div>
+        </div>
+
+        <div id="products-list" class="space-y-2"></div>
+
+        <div id="no-products" class="text-center py-8 text-gray-400 text-sm">
+            Apasă "Adaugă Produs" pentru a adăuga produse în ofertă.
+        </div>
+
+        <!-- TOTALE -->
+        <div class="mt-6 border-t pt-4">
+            <div class="flex flex-col items-end space-y-2">
+                <div class="flex justify-between w-64">
+                    <span class="text-sm text-gray-600">Total fără TVA:</span>
+                    <span id="total-no-vat" class="font-semibold text-gray-800">0,00 RON</span>
+                </div>
+                <div class="flex justify-between w-64">
+                    <span class="text-sm text-gray-600">TVA (19%):</span>
+                    <span id="total-vat" class="font-semibold text-gray-800">0,00 RON</span>
+                </div>
+                <div class="flex justify-between w-64 border-t pt-2">
+                    <span class="text-base font-bold text-gray-800">TOTAL cu TVA:</span>
+                    <span id="total-with-vat" class="text-xl font-bold text-green-600">0,00 RON</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTE -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">📝 Note și Observații</h3>
+        <textarea id="notes" rows="4" placeholder="Condiții speciale, observații, termeni..."
+                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"></textarea>
+    </div>
+</div>
+
+<!-- MODAL ALEGERE PRODUS -->
+<div id="product-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div class="p-5 border-b flex justify-between items-center">
+            <h3 class="text-lg font-bold">📦 Alege Produs din Catalog</h3>
+            <button onclick="closeProductModal()" class="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+        </div>
+        <div class="p-4">
+            <input id="prod-search" type="text" placeholder="Caută în catalog..."
+                   class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+        </div>
+        <div id="prod-list" class="overflow-y-auto flex-1 px-4 pb-4 space-y-2"></div>
+        <div class="p-4 border-t">
+            <button onclick="addManualProduct()"
+                    class="w-full border-2 border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 py-2 rounded-lg text-sm transition-colors">
+                ✏️ Adaugă produs manual (text liber)
+            </button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, addDoc, updateDoc, collection, getDocs,
+             query, orderBy, where, serverTimestamp, arrayUnion }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+        authDomain: "crm-migdalin.firebaseapp.com",
+        projectId: "crm-migdalin",
+        storageBucket: "crm-migdalin.firebasestorage.app",
+        messagingSenderId: "498188629124",
+        appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    let currentUser = null, currentUserData = null;
+    let saleId      = new URLSearchParams(window.location.search).get('id');
+    let saleData    = {};
+    let allClients  = [];
+    let allProducts = [];
+    let lines       = []; // linii de produse în ofertă
+
+    const el    = id => document.getElementById(id);
+    const toast = (msg, ok=true) => {
+        const t = el('toast');
+        t.textContent = msg;
+        t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+        t.classList.remove('hidden');
+        setTimeout(()=>t.classList.add('hidden'),3500);
+    };
+    const fmt = n => parseFloat(n||0).toLocaleString('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' RON';
+
+    // ── AUTH ──────────────────────────────────────────────────────────────────
+    onAuthStateChanged(auth, async user => {
+        if (!user) { window.location.href='../auth/index.html'; return; }
+        currentUser = user;
+        const snap = await getDoc(doc(db,'users',user.uid));
+        if (!snap.exists()) { window.location.href='../auth/index.html'; return; }
+        currentUserData = snap.data();
+
+        await Promise.all([loadClients(), loadProducts()]);
+
+        if (saleId) {
+            el('page-title').textContent = '✏️ Editare Ofertă';
+            const sSnap = await getDoc(doc(db,'sales',saleId));
+            if (sSnap.exists()) {
+                saleData = sSnap.data();
+                populateForm(saleData);
+            }
+        } else {
+            el('offerDate').value  = today();
+            el('expiryDate').value = addDays(30);
+            el('offerNumber').value = await generateOfferNumber();
+        }
+    });
+
+    // ── CLIENȚI ───────────────────────────────────────────────────────────────
+    async function loadClients() {
+        const level = {'admin':99,'presedinte':6,'director_general':5,'director_regional':4,'director_zonal':3,'agent':2}[currentUserData.role]||0;
+        let q;
+        if (level >= 4)      q = query(collection(db,'clients'), orderBy('companyName'));
+        else if (level === 3) q = query(collection(db,'clients'), where('directorZonalId','==',currentUser.uid), orderBy('companyName'));
+        else                  q = query(collection(db,'clients'), where('agentId','==',currentUser.uid), orderBy('companyName'));
+        const snap = await getDocs(q);
+        allClients = [];
+        snap.forEach(d => allClients.push({id:d.id,...d.data()}));
+    }
+
+    async function loadProducts() {
+        const snap = await getDocs(query(collection(db,'products'), orderBy('name')));
+        allProducts = [];
+        snap.forEach(d => allProducts.push({id:d.id,...d.data()}));
+    }
+
+    // ── CLIENT SEARCH ─────────────────────────────────────────────────────────
+    el('client-search').addEventListener('input', () => {
+        const q   = el('client-search').value.toLowerCase().trim();
+        const dd  = el('client-dropdown');
+        if (!q) { dd.classList.add('hidden'); return; }
+        const res = allClients.filter(c=>(c.companyName||'').toLowerCase().includes(q)).slice(0,8);
+        if (!res.length) { dd.classList.add('hidden'); return; }
+        dd.innerHTML = res.map(c=>`
+            <div onclick="selectClient('${c.id}','${(c.companyName||'').replace(/'/g,"\\'")}')"
+                 class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 text-sm">
+                <div class="font-semibold text-gray-900">${c.companyName}</div>
+                <div class="text-gray-400 text-xs">${c.city||''} · ${c.clientType||''}</div>
+            </div>`).join('');
+        dd.classList.remove('hidden');
+    });
+
+    window.selectClient = (id, name) => {
+        el('clientId').value    = id;
+        el('clientName').value  = name;
+        el('client-search').value = name;
+        el('client-dropdown').classList.add('hidden');
+        el('client-selected').classList.remove('hidden');
+    };
+
+    document.addEventListener('click', e => {
+        if (!el('client-search').contains(e.target)) el('client-dropdown').classList.add('hidden');
+    });
+
+    // ── STATUS → arată motiv pierdere ─────────────────────────────────────────
+    el('status').addEventListener('change', () => {
+        el('loss-reason-wrap').classList.toggle('hidden', el('status').value !== 'Pierdută');
+    });
+
+    // ── MODAL PRODUSE ─────────────────────────────────────────────────────────
+    el('btn-add-product').addEventListener('click', openProductModal);
+
+    function openProductModal() {
+        renderProductList('');
+        el('prod-search').value = '';
+        el('product-modal').classList.remove('hidden');
+    }
+
+    window.closeProductModal = () => el('product-modal').classList.add('hidden');
+
+    el('prod-search').addEventListener('input', () => renderProductList(el('prod-search').value.toLowerCase()));
+
+    function renderProductList(q) {
+        const res = allProducts.filter(p=>!q||(p.name||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));
+        el('prod-list').innerHTML = res.length
+            ? res.map(p=>`
+                <div onclick="addProductLine('${p.id}','${(p.name||'').replace(/'/g,"\\'")}','${p.unit||'buc'}',${p.price||0})"
+                     class="border rounded-xl p-3 hover:bg-blue-50 cursor-pointer transition-colors">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-semibold text-gray-900 text-sm">${p.name}</div>
+                            <div class="text-xs text-gray-400">${p.sku||''} ${p.category?'· '+p.category:''}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold text-green-600 text-sm">${parseFloat(p.price||0).toLocaleString('ro-RO',{minimumFractionDigits:2})} RON/${p.unit||'buc'}</div>
+                        </div>
+                    </div>
+                </div>`).join('')
+            : `<p class="text-center text-gray-400 py-8">Niciun produs găsit în catalog.</p>`;
+    }
+
+    window.addProductLine = (id, name, unit, price) => {
+        lines.push({ id, name, unit, price: parseFloat(price), qty: 1, discount: 0 });
+        closeProductModal();
+        renderLines();
+    };
+
+    window.addManualProduct = () => {
+        lines.push({ id: '', name: '', unit: 'buc', price: 0, qty: 1, discount: 0 });
+        closeProductModal();
+        renderLines();
+    };
+
+    // ── LINII PRODUSE ─────────────────────────────────────────────────────────
+    function renderLines() {
+        el('no-products').classList.toggle('hidden', lines.length > 0);
+        el('products-list').innerHTML = lines.map((line, i) => {
+            const total = line.price * line.qty * (1 - line.discount/100);
+            return `
+            <div class="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl p-3 border border-gray-200">
+                <div class="col-span-12 md:col-span-4">
+                    <input type="text" value="${esc(line.name)}" placeholder="Denumire produs *"
+                           oninput="updateLine(${i},'name',this.value)"
+                           class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                </div>
+                <div class="col-span-4 md:col-span-1">
+                    <input type="text" value="${esc(line.unit)}" placeholder="UM"
+                           oninput="updateLine(${i},'unit',this.value)"
+                           class="w-full px-3 py-2 border rounded-lg text-sm text-center focus:outline-none focus:border-blue-500" />
+                </div>
+                <div class="col-span-4 md:col-span-2">
+                    <input type="number" value="${line.price}" placeholder="Preț"
+                           oninput="updateLine(${i},'price',this.value)"
+                           class="w-full px-3 py-2 border rounded-lg text-sm text-right focus:outline-none focus:border-blue-500" />
+                </div>
+                <div class="col-span-2 md:col-span-1">
+                    <input type="number" value="${line.qty}" min="1"
+                           oninput="updateLine(${i},'qty',this.value)"
+                           class="w-full px-3 py-2 border rounded-lg text-sm text-center focus:outline-none focus:border-blue-500" />
+                </div>
+                <div class="col-span-2 md:col-span-1">
+                    <input type="number" value="${line.discount}" min="0" max="100" placeholder="0"
+                           oninput="updateLine(${i},'discount',this.value)"
+                           class="w-full px-3 py-2 border rounded-lg text-sm text-center focus:outline-none focus:border-blue-500" />
+                </div>
+                <div class="col-span-4 md:col-span-2 text-right font-bold text-gray-800 text-sm">
+                    ${total.toLocaleString('ro-RO',{minimumFractionDigits:2})} RON
+                </div>
+                <div class="col-span-2 md:col-span-1 text-right">
+                    <button onclick="removeLine(${i})" class="text-red-500 hover:text-red-700 text-xl">🗑️</button>
+                </div>
+            </div>`;
+        }).join('');
+        recalcTotals();
+    }
+
+    window.updateLine = (i, field, val) => {
+        lines[i][field] = ['price','qty','discount'].includes(field) ? parseFloat(val)||0 : val;
+        recalcTotals();
+        // Actualizăm doar totalul, nu re-render complet (evităm pierderea focusului)
+        const total = lines[i].price * lines[i].qty * (1 - lines[i].discount/100);
+        const cells = document.querySelectorAll('#products-list > div');
+        if (cells[i]) {
+            const totalCell = cells[i].querySelectorAll('div')[5];
+            if (totalCell) totalCell.textContent = total.toLocaleString('ro-RO',{minimumFractionDigits:2}) + ' RON';
+        }
+    };
+
+    window.removeLine = (i) => { lines.splice(i,1); renderLines(); };
+
+    function recalcTotals() {
+        const noVat  = lines.reduce((sum,l)=>sum + l.price*l.qty*(1-l.discount/100), 0);
+        const vat    = noVat * 0.19;
+        const withVat= noVat + vat;
+        el('total-no-vat').textContent   = fmt(noVat);
+        el('total-vat').textContent      = fmt(vat);
+        el('total-with-vat').textContent = fmt(withVat);
+    }
+
+    // ── POPULARE FORMULAR (editare) ───────────────────────────────────────────
+    function populateForm(d) {
+        el('offerNumber').value = d.offerNumber || '';
+        el('status').value      = d.status      || 'Prospect';
+        el('offerDate').value   = d.offerDate   || today();
+        el('expiryDate').value  = d.expiryDate  || '';
+        el('closeDate').value   = d.closeDate   || '';
+        el('notes').value       = d.notes       || '';
+        el('lossReason').value  = d.lossReason  || '';
+
+        if (d.status === 'Pierdută') el('loss-reason-wrap').classList.remove('hidden');
+
+        if (d.clientId) {
+            el('clientId').value    = d.clientId;
+            el('clientName').value  = d.clientName;
+            el('client-search').value = d.clientName;
+            el('client-selected').classList.remove('hidden');
+        }
+
+        lines = d.lines || [];
+        renderLines();
+    }
+
+    // ── GENERARE NUMĂR OFERTĂ ─────────────────────────────────────────────────
+    async function generateOfferNumber() {
+        const year = new Date().getFullYear();
+        const snap = await getDocs(query(collection(db,'sales'), orderBy('createdAt','desc')));
+        const count = snap.size + 1;
+        return `OF-${year}-${String(count).padStart(3,'0')}`;
+    }
+
+    // ── SALVARE ───────────────────────────────────────────────────────────────
+    el('btn-save').addEventListener('click', async () => {
+        const clientId   = el('clientId').value;
+        const clientName = el('clientName').value;
+        const status     = el('status').value;
+        const offerDate  = el('offerDate').value;
+
+        if (!clientId)  { toast('⚠️ Selectează un client!', false); return; }
+        if (!offerDate) { toast('⚠️ Completează data ofertei!', false); return; }
+        if (!lines.length) { toast('⚠️ Adaugă cel puțin un produs!', false); return; }
+        if (lines.some(l=>!l.name)) { toast('⚠️ Completează denumirea pentru toate produsele!', false); return; }
+
+        const noVat   = lines.reduce((sum,l)=>sum+l.price*l.qty*(1-l.discount/100),0);
+        const vatAmt  = noVat * 0.19;
+        const withVat = noVat + vatAmt;
+
+        const data = {
+            offerNumber:  el('offerNumber').value,
+            clientId,
+            clientName,
+            status,
+            offerDate,
+            expiryDate:   el('expiryDate').value,
+            closeDate:    el('closeDate').value,
+            lossReason:   el('lossReason').value,
+            notes:        el('notes').value,
+            lines,
+            totalNoVat:   parseFloat(noVat.toFixed(2)),
+            vatAmount:    parseFloat(vatAmt.toFixed(2)),
+            totalWithVat: parseFloat(withVat.toFixed(2)),
+            agentId:      saleData.agentId   || currentUser.uid,
+            agentName:    saleData.agentName || currentUserData.name || currentUserData.email,
+            directorZonalId: saleData.directorZonalId || currentUserData.managerId || null,
+        };
+
+        el('btn-save').disabled = true;
+        el('btn-save').textContent = 'Se salvează...';
+
+        try {
+            if (saleId) {
+                const changes = Object.keys(data).filter(k=>String(saleData[k]||'')!==String(data[k]||'')).map(k=>({field:k,from:saleData[k],to:data[k]}));
+                await updateDoc(doc(db,'sales',saleId), {
+                    ...data, updatedAt: serverTimestamp(), updatedBy: currentUser.uid,
+                    updatedName: currentUserData.name,
+                    auditLog: arrayUnion({timestamp:new Date().toISOString(), user:currentUserData.name, action:'editare', changes})
+                });
+                toast('✅ Ofertă actualizată!');
+            } else {
+                await addDoc(collection(db,'sales'), {
+                    ...data, createdAt: serverTimestamp(), createdBy: currentUser.uid,
+                    createdName: currentUserData.name,
+                    auditLog: [{timestamp:new Date().toISOString(), user:currentUserData.name, action:'creare', changes:[]}]
+                });
+                toast('✅ Ofertă salvată!');
+            }
+            setTimeout(()=>window.location.href='index.html', 1200);
+        } catch(e) {
+            toast('❌ Eroare: '+e.message, false);
+        } finally {
+            el('btn-save').disabled = false;
+            el('btn-save').textContent = '💾 Salvează';
+        }
+    });
+
+    function esc(s)    { return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+    function today()   { return new Date().toISOString().split('T')[0]; }
+    function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; }
+</script>
+</body>
+</html>
