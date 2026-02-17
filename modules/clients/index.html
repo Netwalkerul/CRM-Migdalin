@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Clienți</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- TOAST -->
+    <div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+    <!-- HEADER -->
+    <header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="window.location.href='../auth/index.html'"
+                        class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm transition-all">
+                    ← Înapoi
+                </button>
+                <div>
+                    <h1 class="text-xl font-bold">👥 Modul Clienți</h1>
+                    <p id="user-info" class="text-blue-200 text-xs">Se încarcă...</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="role-badge" class="px-3 py-1 rounded-full text-sm font-semibold bg-white bg-opacity-20"></span>
+                <button id="btn-add-client"
+                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow flex items-center gap-2">
+                    ➕ Client Nou
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+
+        <!-- FILTRE -->
+        <div class="bg-white rounded-2xl shadow-lg p-5 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                <!-- Căutare -->
+                <div class="lg:col-span-2">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Caută</label>
+                    <input id="filter-search" type="text"
+                           placeholder="Nume, CUI, email, telefon, oraș..."
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors text-sm" />
+                </div>
+
+                <!-- Status -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                    <select id="filter-status"
+                            class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                        <option value="">Toate</option>
+                        <option>Activ</option>
+                        <option>Inactiv</option>
+                        <option>Potențial</option>
+                        <option>Blocat</option>
+                    </select>
+                </div>
+
+                <!-- Tip client -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Tip Client</label>
+                    <select id="filter-type"
+                            class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                        <option value="">Toate</option>
+                        <option>En-gros</option>
+                        <option>Retail</option>
+                        <option>HoReCa</option>
+                        <option>Instituție</option>
+                    </select>
+                </div>
+
+                <!-- Prioritate -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Prioritate</label>
+                    <select id="filter-priority"
+                            class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                        <option value="">Toate</option>
+                        <option>A - Strategic</option>
+                        <option>B</option>
+                        <option>C</option>
+                    </select>
+                </div>
+
+                <!-- Județ -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Județ</label>
+                    <select id="filter-county"
+                            class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                        <option value="">Toate</option>
+                    </select>
+                </div>
+
+                <!-- Agent (vizibil doar pentru roluri superioare) -->
+                <div id="filter-agent-wrap">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Agent</label>
+                    <select id="filter-agent"
+                            class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                        <option value="">Toți agenții</option>
+                    </select>
+                </div>
+
+                <!-- Butoane acțiuni -->
+                <div class="flex items-end gap-2">
+                    <button id="btn-filter"
+                            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        🔍 Filtrează
+                    </button>
+                    <button id="btn-reset-filters"
+                            class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors">
+                        ✕
+                    </button>
+                    <button id="btn-export"
+                            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+                        📥 Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATISTICI RAPIDE -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+                <p class="text-xs text-gray-500 font-medium">Total Clienți</p>
+                <p id="stat-total" class="text-3xl font-bold text-blue-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+                <p class="text-xs text-gray-500 font-medium">Activi</p>
+                <p id="stat-active" class="text-3xl font-bold text-green-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-500">
+                <p class="text-xs text-gray-500 font-medium">Potențiali</p>
+                <p id="stat-potential" class="text-3xl font-bold text-yellow-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+                <p class="text-xs text-gray-500 font-medium">Blocați / Inactivi</p>
+                <p id="stat-inactive" class="text-3xl font-bold text-red-600 mt-1">0</p>
+            </div>
+        </div>
+
+        <!-- TABEL CLIENȚI -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b flex items-center justify-between">
+                <h2 class="text-lg font-bold text-gray-800">
+                    Lista Clienți <span id="count-label" class="text-sm font-normal text-gray-500"></span>
+                </h2>
+                <!-- Paginare info -->
+                <div id="pagination-info" class="text-sm text-gray-500"></div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Companie</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Oraș / Județ</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tip</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prioritate</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider agent-col">Agent</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clients-tbody" class="divide-y divide-gray-100">
+                        <tr>
+                            <td colspan="8" class="text-center py-16 text-gray-400">
+                                <div class="text-5xl mb-3">👥</div>
+                                <p>Se încarcă clienții...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginare -->
+            <div id="pagination" class="p-4 border-t flex items-center justify-between">
+                <button id="btn-prev" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100 disabled:opacity-40 transition-colors">← Anterior</button>
+                <div id="page-numbers" class="flex gap-2"></div>
+                <button id="btn-next" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-100 disabled:opacity-40 transition-colors">Următor →</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp }     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged }
+                                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc, deleteDoc }
+                                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey:            "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+            authDomain:        "crm-migdalin.firebaseapp.com",
+            projectId:         "crm-migdalin",
+            storageBucket:     "crm-migdalin.firebasestorage.app",
+            messagingSenderId: "498188629124",
+            appId:             "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+        };
+
+        const app  = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        const ROLES = {
+            admin:             { label: "Administrator Sistem", level: 99 },
+            presedinte:        { label: "Președinte",           level: 6  },
+            director_general:  { label: "Director General",     level: 5  },
+            director_regional: { label: "Director Regional",    level: 4  },
+            director_zonal:    { label: "Director Zonal",       level: 3  },
+            agent:             { label: "Agent Vânzări",        level: 2  }
+        };
+
+        // ─── STATE ────────────────────────────────────────────────────────────────
+        let currentUser     = null;
+        let currentUserData = null;
+        let allClients      = [];
+        let filteredClients = [];
+        let currentPage     = 1;
+        const PAGE_SIZE     = 20;
+
+        // ─── HELPERS ─────────────────────────────────────────────────────────────
+        const el    = id => document.getElementById(id);
+        const toast = (msg, ok = true) => {
+            const t = el('toast');
+            t.textContent = msg;
+            t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium
+                           ${ok ? 'bg-green-600' : 'bg-red-600'}`;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3500);
+        };
+
+        // ─── AUTH CHECK ───────────────────────────────────────────────────────────
+        onAuthStateChanged(auth, async user => {
+            if (!user) { window.location.href = '../auth/index.html'; return; }
+            currentUser = user;
+            const snap  = await getDoc(doc(db, 'users', user.uid));
+            if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+
+            currentUserData = snap.data();
+            const roleInfo  = ROLES[currentUserData.role] || { label: currentUserData.role };
+            el('user-info').textContent  = currentUserData.name + ' · ' + currentUserData.email;
+            el('role-badge').textContent = roleInfo.label;
+
+            // Ascunde coloana Agent pentru agenți
+            if (currentUserData.role === 'agent') {
+                document.querySelectorAll('.agent-col').forEach(e => e.classList.add('hidden'));
+                el('filter-agent-wrap').classList.add('hidden');
+            } else {
+                await loadAgentsFilter();
+            }
+
+            await loadClients();
+            await loadCountiesFilter();
+        });
+
+        // ─── ÎNCARCĂ AGENȚI ÎN FILTRU ────────────────────────────────────────────
+        async function loadAgentsFilter() {
+            const level = ROLES[currentUserData.role]?.level || 0;
+            let q;
+            if (level >= 4) {
+                q = query(collection(db, 'users'), where('role', '==', 'agent'));
+            } else {
+                q = query(collection(db, 'users'), where('role', '==', 'agent'),
+                          where('managerId', '==', currentUser.uid));
+            }
+            const snap = await getDocs(q);
+            const sel  = el('filter-agent');
+            snap.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value       = d.id;
+                opt.textContent = d.data().name || d.data().email;
+                sel.appendChild(opt);
+            });
+        }
+
+        // ─── ÎNCARCĂ CLIENȚI DIN FIRESTORE ───────────────────────────────────────
+        async function loadClients() {
+            el('clients-tbody').innerHTML = `
+                <tr><td colspan="8" class="text-center py-16 text-gray-400">
+                    <div class="text-5xl mb-3">⏳</div><p>Se încarcă clienții...</p>
+                </td></tr>`;
+
+            try {
+                const level = ROLES[currentUserData.role]?.level || 0;
+                let q;
+
+                if (level >= 4) {
+                    // Director regional, general, presedinte, admin → vede toți
+                    q = query(collection(db, 'clients'), orderBy('companyName'));
+                } else if (level === 3) {
+                    // Director zonal → clienții agenților săi
+                    q = query(collection(db, 'clients'),
+                              where('directorZonalId', '==', currentUser.uid),
+                              orderBy('companyName'));
+                } else {
+                    // Agent → doar clienții săi
+                    q = query(collection(db, 'clients'),
+                              where('agentId', '==', currentUser.uid),
+                              orderBy('companyName'));
+                }
+
+                const snap = await getDocs(q);
+                allClients = [];
+                snap.forEach(d => allClients.push({ id: d.id, ...d.data() }));
+
+                updateStats(allClients);
+                applyFilters();
+
+            } catch (e) {
+                el('clients-tbody').innerHTML = `
+                    <tr><td colspan="8" class="text-center py-8 text-red-500">
+                        Eroare la încărcare: ${e.message}
+                    </td></tr>`;
+            }
+        }
+
+        // ─── STATISTICI ───────────────────────────────────────────────────────────
+        function updateStats(clients) {
+            el('stat-total').textContent    = clients.length;
+            el('stat-active').textContent   = clients.filter(c => c.status === 'Activ').length;
+            el('stat-potential').textContent= clients.filter(c => c.status === 'Potențial').length;
+            el('stat-inactive').textContent = clients.filter(c =>
+                c.status === 'Inactiv' || c.status === 'Blocat').length;
+        }
+
+        // ─── FILTRE ───────────────────────────────────────────────────────────────
+        function applyFilters() {
+            const search   = el('filter-search').value.toLowerCase().trim();
+            const status   = el('filter-status').value;
+            const type     = el('filter-type').value;
+            const priority = el('filter-priority').value;
+            const county   = el('filter-county').value;
+            const agent    = el('filter-agent').value;
+
+            filteredClients = allClients.filter(c => {
+                const matchSearch = !search ||
+                    (c.companyName   || '').toLowerCase().includes(search) ||
+                    (c.cui           || '').toLowerCase().includes(search) ||
+                    (c.emailMain     || '').toLowerCase().includes(search) ||
+                    (c.phoneMobile   || '').toLowerCase().includes(search) ||
+                    (c.city          || '').toLowerCase().includes(search) ||
+                    (c.contactName   || '').toLowerCase().includes(search);
+
+                const matchStatus   = !status   || c.status   === status;
+                const matchType     = !type     || c.clientType === type;
+                const matchPriority = !priority || c.priority  === priority;
+                const matchCounty   = !county   || c.county    === county;
+                const matchAgent    = !agent    || c.agentId   === agent;
+
+                return matchSearch && matchStatus && matchType && matchPriority && matchCounty && matchAgent;
+            });
+
+            currentPage = 1;
+            el('count-label').textContent = `(${filteredClients.length} rezultate)`;
+            renderTable();
+            renderPagination();
+        }
+
+        // ─── RENDER TABEL ─────────────────────────────────────────────────────────
+        function renderTable() {
+            const start   = (currentPage - 1) * PAGE_SIZE;
+            const pageData = filteredClients.slice(start, start + PAGE_SIZE);
+            const level    = ROLES[currentUserData.role]?.level || 0;
+
+            if (pageData.length === 0) {
+                el('clients-tbody').innerHTML = `
+                    <tr><td colspan="8" class="text-center py-16 text-gray-400">
+                        <div class="text-5xl mb-3">👥</div>
+                        <p>Nu există clienți care să corespundă filtrelor selectate.</p>
+                    </td></tr>`;
+                return;
+            }
+
+            const statusColors = {
+                'Activ':     'bg-green-100 text-green-800',
+                'Inactiv':   'bg-gray-100 text-gray-700',
+                'Potențial': 'bg-yellow-100 text-yellow-800',
+                'Blocat':    'bg-red-100 text-red-800'
+            };
+            const priorityColors = {
+                'A - Strategic': 'bg-purple-100 text-purple-800',
+                'B':             'bg-blue-100 text-blue-800',
+                'C':             'bg-gray-100 text-gray-700'
+            };
+
+            el('clients-tbody').innerHTML = pageData.map(c => `
+                <tr class="hover:bg-blue-50 transition-colors cursor-pointer"
+                    onclick="viewClient('${c.id}')">
+                    <td class="px-4 py-3">
+                        <div class="font-semibold text-gray-900">${c.companyName || '—'}</div>
+                        <div class="text-xs text-gray-500">${c.cui || ''} ${c.legalForm || ''}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="text-sm text-gray-800">${c.contactName || '—'}</div>
+                        <div class="text-xs text-gray-500">${c.phoneMobile || c.phoneFixed || ''}</div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-700">
+                        ${c.city || '—'}<br>
+                        <span class="text-xs text-gray-500">${c.county || ''}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-700">${c.clientType || '—'}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                     ${priorityColors[c.priority] || 'bg-gray-100 text-gray-700'}">
+                            ${c.priority || '—'}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                     ${statusColors[c.status] || 'bg-gray-100 text-gray-700'}">
+                            ${c.status || '—'}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600 agent-col ${level <= 2 ? 'hidden' : ''}">
+                        ${c.agentName || '—'}
+                    </td>
+                    <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
+                        <div class="flex justify-end gap-2">
+                            <button onclick="viewClient('${c.id}')"
+                                    class="text-blue-600 hover:text-blue-800 transition-colors text-lg" title="Vezi fișa">👁️</button>
+                            <button onclick="editClient('${c.id}')"
+                                    class="text-yellow-600 hover:text-yellow-800 transition-colors text-lg" title="Editează">✏️</button>
+                            <button onclick="deleteClient('${c.id}', '${(c.companyName||'').replace(/'/g,'')}')"
+                                    class="text-red-600 hover:text-red-800 transition-colors text-lg ${currentUserData.role === 'agent' ? 'hidden' : ''}" title="Șterge">🗑️</button>
+                        </div>
+                    </td>
+                </tr>`).join('');
+
+            el('pagination-info').textContent =
+                `${start + 1}–${Math.min(start + PAGE_SIZE, filteredClients.length)} din ${filteredClients.length}`;
+        }
+
+        // ─── PAGINARE ─────────────────────────────────────────────────────────────
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredClients.length / PAGE_SIZE);
+            const nums = el('page-numbers');
+            nums.innerHTML = '';
+
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = `w-9 h-9 rounded-lg text-sm font-medium transition-colors
+                                 ${i === currentPage
+                                    ? 'bg-blue-600 text-white'
+                                    : 'border hover:bg-gray-100 text-gray-700'}`;
+                btn.onclick = () => { currentPage = i; renderTable(); renderPagination(); };
+                nums.appendChild(btn);
+            }
+
+            el('btn-prev').disabled = currentPage === 1;
+            el('btn-next').disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        // ─── JUDEȚE FILTER ────────────────────────────────────────────────────────
+        async function loadCountiesFilter() {
+            const counties = [...new Set(allClients.map(c => c.county).filter(Boolean))].sort();
+            const sel = el('filter-county');
+            counties.forEach(county => {
+                const opt = document.createElement('option');
+                opt.value = opt.textContent = county;
+                sel.appendChild(opt);
+            });
+        }
+
+        // ─── NAVIGARE ─────────────────────────────────────────────────────────────
+        window.viewClient = id =>
+            window.location.href = `client.html?id=${id}`;
+
+        window.editClient = id =>
+            window.location.href = `form.html?id=${id}`;
+
+        window.deleteClient = async (id, name) => {
+            if (!confirm(`Sigur vrei să ștergi clientul "${name}"?\nAceastă acțiune nu poate fi anulată!`)) return;
+            try {
+                await deleteDoc(doc(db, 'clients', id));
+                toast(`✅ Clientul "${name}" a fost șters.`);
+                allClients = allClients.filter(c => c.id !== id);
+                updateStats(allClients);
+                applyFilters();
+            } catch (e) {
+                toast('Eroare la ștergere: ' + e.message, false);
+            }
+        };
+
+        // ─── EXPORT EXCEL (CSV) ───────────────────────────────────────────────────
+        el('btn-export').addEventListener('click', () => {
+            if (filteredClients.length === 0) { toast('Nu există clienți de exportat.', false); return; }
+
+            const headers = ['Companie','CUI','Forma Juridică','Oraș','Județ','Contact','Telefon',
+                             'Email','Tip Client','Prioritate','Status','Agent','Data Creare'];
+            const rows = filteredClients.map(c => [
+                c.companyName || '', c.cui || '', c.legalForm || '',
+                c.city || '', c.county || '', c.contactName || '',
+                c.phoneMobile || '', c.emailMain || '', c.clientType || '',
+                c.priority || '', c.status || '', c.agentName || '',
+                c.createdAt ? new Date(c.createdAt.seconds * 1000).toLocaleDateString('ro-RO') : ''
+            ]);
+
+            const csv = [headers, ...rows]
+                .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+                .join('\n');
+
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = `clienti_${new Date().toLocaleDateString('ro-RO').replace(/\./g,'-')}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast('✅ Export realizat cu succes!');
+        });
+
+        // ─── EVENT LISTENERS ──────────────────────────────────────────────────────
+        el('btn-add-client').addEventListener('click', () =>
+            window.location.href = 'form.html');
+
+        el('btn-filter').addEventListener('click', applyFilters);
+
+        el('btn-reset-filters').addEventListener('click', () => {
+            ['filter-search','filter-status','filter-type',
+             'filter-priority','filter-county','filter-agent'].forEach(id => {
+                const e = el(id);
+                e.value = '';
+            });
+            applyFilters();
+        });
+
+        el('filter-search').addEventListener('keydown', e => {
+            if (e.key === 'Enter') applyFilters();
+        });
+
+        el('btn-prev').addEventListener('click', () => {
+            if (currentPage > 1) { currentPage--; renderTable(); renderPagination(); }
+        });
+
+        el('btn-next').addEventListener('click', () => {
+            const totalPages = Math.ceil(filteredClients.length / PAGE_SIZE);
+            if (currentPage < totalPages) { currentPage++; renderTable(); renderPagination(); }
+        });
+    </script>
+</body>
+</html>
