@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Autentificare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp }          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
+                                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc, serverTimestamp }
+                                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        // ─── CONFIGURARE FIREBASE ────────────────────────────────────────────────
+        const firebaseConfig = {
+            apiKey:            "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+            authDomain:        "crm-migdalin.firebaseapp.com",
+            projectId:         "crm-migdalin",
+            storageBucket:     "crm-migdalin.firebasestorage.app",
+            messagingSenderId: "498188629124",
+            appId:             "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+        };
+
+        const app  = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        // ─── ROLURI ȘI IERARHIE ───────────────────────────────────────────────────
+        const ROLES = {
+            admin:              { label: "Administrator Sistem",      level: 99 },
+            presedinte:         { label: "Președinte",                level: 6  },
+            director_general:   { label: "Director General",          level: 5  },
+            director_regional:  { label: "Director Vânzări Regional", level: 4  },
+            director_zonal:     { label: "Director Vânzări Zonal",    level: 3  },
+            agent:              { label: "Agent Vânzări",             level: 2  }
+        };
+
+        // ─── STARE GLOBALĂ ────────────────────────────────────────────────────────
+        let currentUser     = null;
+        let currentUserData = null;
+
+        // ─── HELPERS UI ───────────────────────────────────────────────────────────
+        const show  = id => document.getElementById(id).classList.remove('hidden');
+        const hide  = id => document.getElementById(id).classList.add('hidden');
+        const el    = id => document.getElementById(id);
+        const toast = (msg, ok = true) => {
+            const t = el('toast');
+            t.textContent = msg;
+            t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium transition-all
+                           ${ok ? 'bg-green-600' : 'bg-red-600'}`;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3500);
+        };
+
+        // ─── AFIȘARE ECRANE ───────────────────────────────────────────────────────
+        const showScreen = screen => {
+            ['screen-login','screen-dashboard','screen-admin'].forEach(hide);
+            show('screen-' + screen);
+        };
+
+        // ─── AUTH STATE LISTENER ──────────────────────────────────────────────────
+        onAuthStateChanged(auth, async user => {
+            if (user) {
+                currentUser = user;
+                try {
+                    const snap = await getDoc(doc(db, 'users', user.uid));
+                    if (snap.exists()) {
+                        currentUserData = snap.data();
+                        renderDashboard();
+                        showScreen('dashboard');
+                    } else {
+                        // Profilul nu există încă (primul utilizator)
+                        await createFirstAdmin(user);
+                    }
+                } catch (e) {
+                    toast('Eroare la încărcarea profilului: ' + e.message, false);
+                }
+            } else {
+                currentUser     = null;
+                currentUserData = null;
+                showScreen('login');
+            }
+        });
+
+        // ─── PRIMUL UTILIZATOR → ADMIN AUTOMAT ───────────────────────────────────
+        async function createFirstAdmin(user) {
+            const usersSnap = await getDocs(collection(db, 'users'));
+            const isFirst   = usersSnap.empty;
+            const role      = isFirst ? 'admin' : 'agent'; // primul → admin, restul → agent implicit
+
+            await setDoc(doc(db, 'users', user.uid), {
+                uid:       user.uid,
+                email:     user.email,
+                role:      role,
+                name:      user.email.split('@')[0],
+                createdAt: serverTimestamp(),
+                active:    true,
+                managerId: null
+            });
+
+            currentUserData = { uid: user.uid, email: user.email, role, name: user.email.split('@')[0] };
+            toast(isFirst ? '✅ Primul cont creat ca Administrator!' : '✅ Cont creat ca Agent. Contactați adminul pentru rol.');
+            renderDashboard();
+            showScreen('dashboard');
+        }
+
+        // ─── LOGIN ────────────────────────────────────────────────────────────────
+        el('btn-login').addEventListener('click', async () => {
+            const email = el('input-email').value.trim();
+            const pass  = el('input-pass').value;
+            const errEl = el('login-error');
+
+            if (!email || !pass) { errEl.textContent = 'Completați email și parola.'; return; }
+            errEl.textContent = '';
+            el('btn-login').disabled = true;
+            el('btn-login').textContent = 'Se conectează...';
+
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch (e) {
+                const msgs = {
+                    'auth/user-not-found':   'Email inexistent.',
+                    'auth/wrong-password':   'Parolă incorectă.',
+                    'auth/invalid-email':    'Email invalid.',
+                    'auth/too-many-requests':'Prea multe încercări. Așteptați câteva minute.',
+                    'auth/invalid-credential':'Email sau parolă incorecte.'
+                };
+                errEl.textContent = msgs[e.code] || 'Eroare: ' + e.message;
+            } finally {
+                el('btn-login').disabled = false;
+                el('btn-login').textContent = 'Conectare';
+            }
+        });
+
+        // Enter pe câmpuri = login
+        ['input-email','input-pass'].forEach(id =>
+            el(id).addEventListener('keydown', e => { if (e.key === 'Enter') el('btn-login').click(); })
+        );
+
+        // ─── RESET PAROLĂ ─────────────────────────────────────────────────────────
+        el('btn-reset').addEventListener('click', async () => {
+            const email = el('input-email').value.trim();
+            if (!email) { el('login-error').textContent = 'Introduceți email-ul pentru resetare.'; return; }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                toast('Email de resetare trimis la ' + email);
+            } catch (e) {
+                toast('Eroare: ' + e.message, false);
+            }
+        });
+
+        // ─── LOGOUT ───────────────────────────────────────────────────────────────
+        el('btn-logout').addEventListener('click', async () => {
+            await signOut(auth);
+            toast('Deconectat cu succes.');
+        });
+
+        // ─── RENDER DASHBOARD ─────────────────────────────────────────────────────
+        function renderDashboard() {
+            if (!currentUserData) return;
+            const roleInfo = ROLES[currentUserData.role] || { label: currentUserData.role };
+
+            el('dash-name').textContent  = currentUserData.name || currentUserData.email;
+            el('dash-email').textContent = currentUserData.email;
+            el('dash-role').textContent  = roleInfo.label;
+
+            // Badge culoare după rol
+            const colors = {
+                admin:             'bg-red-100 text-red-800',
+                presedinte:        'bg-purple-100 text-purple-800',
+                director_general:  'bg-blue-100 text-blue-800',
+                director_regional: 'bg-indigo-100 text-indigo-800',
+                director_zonal:    'bg-cyan-100 text-cyan-800',
+                agent:             'bg-green-100 text-green-800'
+            };
+            el('dash-role').className = `px-3 py-1 rounded-full text-sm font-semibold ${colors[currentUserData.role] || 'bg-gray-100 text-gray-800'}`;
+
+            // Meniu module — afișat funcție de rol
+            renderModuleMenu();
+
+            // Buton Admin Panel — doar pentru admin
+            if (currentUserData.role === 'admin') {
+                show('btn-admin-panel');
+            } else {
+                hide('btn-admin-panel');
+            }
+        }
+
+        function renderModuleMenu() {
+            const role  = currentUserData.role;
+            const level = ROLES[role]?.level || 0;
+
+            const modules = [
+                { id: 'mod-dashboard',     label: '🏠 Dashboard',          minLevel: 2  },
+                { id: 'mod-clients',       label: '👥 Clienți',            minLevel: 2  },
+                { id: 'mod-sales',         label: '🛒 Vânzări',            minLevel: 2  },
+                { id: 'mod-comms',         label: '💬 Comunicări',         minLevel: 2  },
+                { id: 'mod-leads',         label: '🎯 Leaduri',            minLevel: 2  },
+                { id: 'mod-opportunities', label: '💡 Oportunități',       minLevel: 2  },
+                { id: 'mod-reports',       label: '📊 Rapoarte',           minLevel: 3  },
+                { id: 'mod-reports-adv',   label: '📈 Rapoarte Avansate',  minLevel: 4  },
+                { id: 'mod-users',         label: '👤 Utilizatori',        minLevel: 99 },
+            ];
+
+            const menu = el('module-menu');
+            menu.innerHTML = modules
+                .filter(m => level >= m.minLevel)
+                .map(m => `
+                    <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-blue-50 text-gray-700
+                                   hover:text-blue-700 font-medium transition-colors flex items-center gap-2
+                                   border border-transparent hover:border-blue-200"
+                            onclick="handleModuleClick('${m.id}')">
+                        ${m.label}
+                    </button>`)
+                .join('');
+        }
+
+        // ─── ADMIN PANEL ──────────────────────────────────────────────────────────
+        el('btn-admin-panel').addEventListener('click', async () => {
+            showScreen('admin');
+            await loadUsers();
+        });
+
+        el('btn-back-dashboard').addEventListener('click', () => {
+            showScreen('dashboard');
+        });
+
+        async function loadUsers() {
+            const snap  = await getDocs(collection(db, 'users'));
+            const users = [];
+            snap.forEach(d => users.push({ id: d.id, ...d.data() }));
+
+            const tbody = el('users-table-body');
+            tbody.innerHTML = users.map(u => {
+                const roleLabel = ROLES[u.role]?.label || u.role;
+                const colors = {
+                    admin:'bg-red-100 text-red-800', presedinte:'bg-purple-100 text-purple-800',
+                    director_general:'bg-blue-100 text-blue-800', director_regional:'bg-indigo-100 text-indigo-800',
+                    director_zonal:'bg-cyan-100 text-cyan-800', agent:'bg-green-100 text-green-800'
+                };
+                const badgeClass = colors[u.role] || 'bg-gray-100 text-gray-800';
+                const roleOptions = Object.entries(ROLES).map(([k,v]) =>
+                    `<option value="${k}" ${u.role===k?'selected':''}>${v.label}</option>`).join('');
+
+                return `
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3">
+                        <input type="text" value="${u.name || ''}" id="name-${u.id}"
+                               class="border rounded px-2 py-1 w-full text-sm focus:border-blue-400 focus:outline-none" />
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${u.email}</td>
+                    <td class="px-4 py-3">
+                        <select id="role-${u.id}"
+                                class="border rounded px-2 py-1 text-sm focus:border-blue-400 focus:outline-none">
+                            ${roleOptions}
+                        </select>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${u.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${u.active ? 'Activ' : 'Inactiv'}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex gap-2">
+                            <button onclick="saveUser('${u.id}')"
+                                    class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 transition-colors">
+                                Salvează
+                            </button>
+                            <button onclick="toggleUser('${u.id}', ${u.active})"
+                                    class="${u.active ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'} text-white px-3 py-1 rounded text-xs transition-colors">
+                                ${u.active ? 'Dezactivează' : 'Activează'}
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Salvează modificări utilizator
+        window.saveUser = async (uid) => {
+            const name = el('name-' + uid).value.trim();
+            const role = el('role-' + uid).value;
+            try {
+                await updateDoc(doc(db, 'users', uid), { name, role });
+                toast('✅ Utilizator actualizat!');
+                await loadUsers();
+            } catch (e) {
+                toast('Eroare: ' + e.message, false);
+            }
+        };
+
+        // Activează / dezactivează utilizator
+        window.toggleUser = async (uid, isActive) => {
+            try {
+                await updateDoc(doc(db, 'users', uid), { active: !isActive });
+                toast(isActive ? '⚠️ Utilizator dezactivat.' : '✅ Utilizator activat.');
+                await loadUsers();
+            } catch (e) {
+                toast('Eroare: ' + e.message, false);
+            }
+        };
+
+        // ─── NAVIGARE MODULE (placeholder până construim modulele) ───────────────
+        window.handleModuleClick = (moduleId) => {
+            const labels = {
+                'mod-dashboard':     'Dashboard',
+                'mod-clients':       'Clienți',
+                'mod-sales':         'Vânzări',
+                'mod-comms':         'Comunicări',
+                'mod-leads':         'Leaduri',
+                'mod-opportunities': 'Oportunități',
+                'mod-reports':       'Rapoarte',
+                'mod-reports-adv':   'Rapoarte Avansate',
+                'mod-users':         'Utilizatori',
+            };
+            el('module-content-title').textContent = labels[moduleId] || moduleId;
+            el('module-content-msg').textContent   = `Modulul "${labels[moduleId]}" este în construcție. Reveniți curând!`;
+        };
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- TOAST NOTIFICARE -->
+    <div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         ECRAN 1: LOGIN
+    ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="screen-login" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-800 p-8 text-center">
+                <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <span class="text-4xl">📊</span>
+                </div>
+                <h1 class="text-3xl font-bold text-white">CRM Migdalin</h1>
+                <p class="text-blue-200 mt-1">Sistem Management Clienți</p>
+            </div>
+
+            <!-- Form -->
+            <div class="p-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 text-center">Autentificare</h2>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                        <input id="input-email" type="email" placeholder="email@migdalin.ro"
+                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Parolă</label>
+                        <input id="input-pass" type="password" placeholder="••••••••"
+                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors" />
+                    </div>
+                </div>
+
+                <p id="login-error" class="text-red-600 text-sm mt-3 min-h-[20px]"></p>
+
+                <button id="btn-login"
+                        class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-lg shadow-md hover:shadow-lg transition-all">
+                    Conectare
+                </button>
+
+                <button id="btn-reset"
+                        class="w-full mt-3 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
+                    Am uitat parola
+                </button>
+
+                <p class="text-center text-xs text-gray-400 mt-6">
+                    © 2025 Migdalin SRL · Iași
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         ECRAN 2: DASHBOARD PRINCIPAL
+    ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="screen-dashboard" class="hidden min-h-screen flex flex-col">
+
+        <!-- Navbar -->
+        <header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+            <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">📊</span>
+                    <div>
+                        <h1 class="text-xl font-bold leading-tight">CRM Migdalin SRL</h1>
+                        <p class="text-blue-200 text-xs">Iași · Sistem Management Clienți</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <!-- Info utilizator -->
+                    <div class="text-right hidden sm:block">
+                        <p id="dash-name"  class="font-semibold text-sm"></p>
+                        <p id="dash-email" class="text-blue-200 text-xs"></p>
+                    </div>
+                    <span id="dash-role" class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+
+                    <!-- Buton Admin Panel -->
+                    <button id="btn-admin-panel" class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow">
+                        ⚙️ Admin
+                    </button>
+
+                    <button id="btn-logout" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                        Ieșire
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Layout principal -->
+        <div class="flex flex-1 max-w-7xl mx-auto w-full px-4 py-6 gap-6">
+
+            <!-- Sidebar meniu module -->
+            <aside class="w-64 flex-shrink-0">
+                <div class="bg-white rounded-2xl shadow-lg p-4">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Module</p>
+                    <div id="module-menu" class="space-y-1"></div>
+                </div>
+            </aside>
+
+            <!-- Conținut principal -->
+            <main class="flex-1 bg-white rounded-2xl shadow-lg p-6">
+                <h2 id="module-content-title" class="text-2xl font-bold text-gray-800 mb-2">
+                    Bun venit în CRM Migdalin!
+                </h2>
+                <p id="module-content-msg" class="text-gray-600">
+                    Selectați un modul din meniul din stânga pentru a începe.
+                </p>
+            </main>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         ECRAN 3: ADMIN PANEL — GESTIONARE UTILIZATORI
+    ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="screen-admin" class="hidden min-h-screen bg-gray-100">
+
+        <!-- Navbar admin -->
+        <header class="bg-gradient-to-r from-red-700 to-red-900 text-white shadow-xl">
+            <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">⚙️</span>
+                    <div>
+                        <h1 class="text-xl font-bold">Panou Administrator</h1>
+                        <p class="text-red-200 text-xs">Gestionare utilizatori și roluri</p>
+                    </div>
+                </div>
+                <button id="btn-back-dashboard"
+                        class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                    ← Înapoi la CRM
+                </button>
+            </div>
+        </header>
+
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="p-6 border-b flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Utilizatori Sistem</h2>
+                        <p class="text-gray-500 text-sm mt-1">
+                            Modificați numele, rolul sau statusul fiecărui utilizator.
+                            <strong>Contul dumneavoastră nu poate fi dezactivat.</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Nume</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rol</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Acțiuni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body" class="divide-y divide-gray-100">
+                            <tr>
+                                <td colspan="5" class="text-center py-8 text-gray-400">Se încarcă utilizatorii...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Card info roluri -->
+            <div class="mt-6 bg-white rounded-2xl shadow-lg p-6">
+                <h3 class="font-bold text-gray-800 mb-4">📋 Ierarhia Rolurilor și Drepturi</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div class="border-l-4 border-red-500 pl-4 py-2">
+                        <p class="font-semibold text-red-700">Administrator Sistem</p>
+                        <p class="text-xs text-gray-500">Acces total + gestionare utilizatori și roluri</p>
+                    </div>
+                    <div class="border-l-4 border-purple-500 pl-4 py-2">
+                        <p class="font-semibold text-purple-700">Președinte</p>
+                        <p class="text-xs text-gray-500">Vede toate datele companiei, toate rapoartele</p>
+                    </div>
+                    <div class="border-l-4 border-blue-500 pl-4 py-2">
+                        <p class="font-semibold text-blue-700">Director General</p>
+                        <p class="text-xs text-gray-500">Vede toți directorii regionali și datele lor</p>
+                    </div>
+                    <div class="border-l-4 border-indigo-500 pl-4 py-2">
+                        <p class="font-semibold text-indigo-700">Director Regional</p>
+                        <p class="text-xs text-gray-500">Vede directorii zonali din regiunea sa</p>
+                    </div>
+                    <div class="border-l-4 border-cyan-500 pl-4 py-2">
+                        <p class="font-semibold text-cyan-700">Director Zonal</p>
+                        <p class="text-xs text-gray-500">Vede agenții din zona sa și clienții lor</p>
+                    </div>
+                    <div class="border-l-4 border-green-500 pl-4 py-2">
+                        <p class="font-semibold text-green-700">Agent Vânzări</p>
+                        <p class="text-xs text-gray-500">Vede și gestionează doar clienții proprii</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
