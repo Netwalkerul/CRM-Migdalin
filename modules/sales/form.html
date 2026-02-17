@@ -133,7 +133,7 @@
                     <span id="total-no-vat" class="font-semibold text-gray-800">0,00 RON</span>
                 </div>
                 <div class="flex justify-between w-64">
-                    <span class="text-sm text-gray-600">TVA (19%):</span>
+                    <span class="text-sm text-gray-600">TVA (21%):</span>
                     <span id="total-vat" class="font-semibold text-gray-800">0,00 RON</span>
                 </div>
                 <div class="flex justify-between w-64 border-t pt-2">
@@ -389,7 +389,7 @@
 
     function recalcTotals() {
         const noVat  = lines.reduce((sum,l)=>sum + l.price*l.qty*(1-l.discount/100), 0);
-        const vat    = noVat * 0.19;
+        const vat    = noVat * 0.21;
         const withVat= noVat + vat;
         el('total-no-vat').textContent   = fmt(noVat);
         el('total-vat').textContent      = fmt(vat);
@@ -440,7 +440,7 @@
         if (lines.some(l=>!l.name)) { toast('⚠️ Completează denumirea pentru toate produsele!', false); return; }
 
         const noVat   = lines.reduce((sum,l)=>sum+l.price*l.qty*(1-l.discount/100),0);
-        const vatAmt  = noVat * 0.19;
+        const vatAmt  = noVat * 0.21;
         const withVat = noVat + vatAmt;
 
         const data = {
