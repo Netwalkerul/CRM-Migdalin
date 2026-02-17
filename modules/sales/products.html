@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Catalog Produse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Vânzări</button>
+            <h1 class="text-xl font-bold">📦 Catalog Produse</h1>
+        </div>
+        <button id="btn-add" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow">
+            ➕ Produs Nou
+        </button>
+    </div>
+</header>
+
+<div class="max-w-5xl mx-auto px-4 py-6">
+
+    <!-- FILTRE -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6 flex gap-3">
+        <input id="filter-search" type="text" placeholder="Caută după nume, cod SKU..."
+               class="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+        <select id="filter-cat" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+            <option value="">Toate categoriile</option>
+        </select>
+        <button onclick="applyFilters()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">🔍</button>
+    </div>
+
+    <!-- TABEL -->
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Produs</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Cod SKU</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Categorie</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Preț</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">UM</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Stoc</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody id="prod-tbody" class="divide-y divide-gray-100">
+                    <tr><td colspan="7" class="text-center py-16 text-gray-400">
+                        <div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PRODUS -->
+<div id="prod-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div class="p-6 border-b flex justify-between items-center">
+            <h3 id="modal-title" class="text-xl font-bold">Produs Nou</h3>
+            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Nume Produs *</label>
+                <input id="m-name" type="text" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Cod SKU</label>
+                    <input id="m-sku" type="text" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Categorie</label>
+                    <input id="m-cat" type="text" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Preț de Listă (RON) *</label>
+                    <input id="m-price" type="number" step="0.01" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Unitate Măsură</label>
+                    <select id="m-unit" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                        <option>buc</option><option>kg</option><option>l</option>
+                        <option>cutie</option><option>palet</option><option>set</option><option>m</option><option>m²</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Stoc Disponibil</label>
+                    <input id="m-stock" type="number" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Descriere</label>
+                <textarea id="m-desc" rows="2" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"></textarea>
+            </div>
+        </div>
+        <div class="p-6 border-t flex gap-3">
+            <button id="btn-modal-save" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium">Salvează</button>
+            <button onclick="closeModal()" class="flex-1 border-2 border-gray-300 hover:bg-gray-100 py-2 rounded-lg font-medium">Anulează</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, query, orderBy, serverTimestamp }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+        authDomain: "crm-migdalin.firebaseapp.com",
+        projectId: "crm-migdalin",
+        storageBucket: "crm-migdalin.firebasestorage.app",
+        messagingSenderId: "498188629124",
+        appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    let currentUserData = null;
+    let allProds = [], filteredProds = [];
+    let editingId = null;
+
+    const el    = id => document.getElementById(id);
+    const toast = (msg, ok=true) => {
+        const t = el('toast');
+        t.textContent = msg;
+        t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+        t.classList.remove('hidden');
+        setTimeout(()=>t.classList.add('hidden'),3500);
+    };
+
+    onAuthStateChanged(auth, async user => {
+        if (!user) { window.location.href='../auth/index.html'; return; }
+        const snap = await getDoc(doc(db,'users',user.uid));
+        if (!snap.exists()) { window.location.href='../auth/index.html'; return; }
+        currentUserData = snap.data();
+
+        // Doar admin poate gestiona catalogul
+        if (!['admin','director_general','presedinte'].includes(currentUserData.role)) {
+            el('btn-add').classList.add('hidden');
+        }
+        await loadProducts();
+    });
+
+    async function loadProducts() {
+        const snap = await getDocs(query(collection(db,'products'), orderBy('name')));
+        allProds = [];
+        snap.forEach(d => allProds.push({id:d.id,...d.data()}));
+
+        // Populează categorii
+        const cats = [...new Set(allProds.map(p=>p.category).filter(Boolean))].sort();
+        const sel  = el('filter-cat');
+        sel.innerHTML = '<option value="">Toate categoriile</option>' +
+            cats.map(c=>`<option>${c}</option>`).join('');
+
+        applyFilters();
+    }
+
+    window.applyFilters = () => {
+        const q   = el('filter-search').value.toLowerCase();
+        const cat = el('filter-cat').value;
+        filteredProds = allProds.filter(p=>
+            (!q || (p.name||'').toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q)) &&
+            (!cat || p.category === cat)
+        );
+        renderTable();
+    };
+
+    function renderTable() {
+        if (!filteredProds.length) {
+            el('prod-tbody').innerHTML = `<tr><td colspan="7" class="text-center py-16 text-gray-400">
+                <div class="text-5xl mb-3">📦</div><p>Nu există produse în catalog.</p></td></tr>`;
+            return;
+        }
+        const canEdit = ['admin','director_general','presedinte'].includes(currentUserData?.role);
+        el('prod-tbody').innerHTML = filteredProds.map(p => `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3">
+                    <div class="font-semibold text-gray-900 text-sm">${p.name||'—'}</div>
+                    ${p.description?`<div class="text-xs text-gray-400 mt-0.5">${p.description}</div>`:''}
+                </td>
+                <td class="px-4 py-3 font-mono text-xs text-gray-600">${p.sku||'—'}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">${p.category||'—'}</span></td>
+                <td class="px-4 py-3 text-right font-bold text-gray-800">${parseFloat(p.price||0).toLocaleString('ro-RO',{minimumFractionDigits:2})} RON</td>
+                <td class="px-4 py-3 text-center text-sm text-gray-600">${p.unit||'buc'}</td>
+                <td class="px-4 py-3 text-center">
+                    <span class="px-2 py-1 rounded text-xs font-semibold ${(p.stock||0)>0?'bg-green-100 text-green-800':'bg-red-100 text-red-800'}">
+                        ${p.stock||0}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    ${canEdit?`
+                    <div class="flex justify-end gap-2">
+                        <button onclick="openEdit('${p.id}')" class="text-yellow-600 hover:text-yellow-800 text-lg">✏️</button>
+                        <button onclick="deleteProd('${p.id}','${(p.name||'').replace(/'/g,'')}')" class="text-red-600 hover:text-red-800 text-lg">🗑️</button>
+                    </div>`:'—'}
+                </td>
+            </tr>`).join('');
+    }
+
+    // ── MODAL ─────────────────────────────────────────────────────────────────
+    el('btn-add').onclick = () => openModal();
+
+    function openModal(prod=null) {
+        editingId = prod?.id || null;
+        el('modal-title').textContent = prod ? '✏️ Editare Produs' : '➕ Produs Nou';
+        el('m-name').value  = prod?.name  || '';
+        el('m-sku').value   = prod?.sku   || '';
+        el('m-cat').value   = prod?.category || '';
+        el('m-price').value = prod?.price || '';
+        el('m-unit').value  = prod?.unit  || 'buc';
+        el('m-stock').value = prod?.stock || '';
+        el('m-desc').value  = prod?.description || '';
+        el('prod-modal').classList.remove('hidden');
+    }
+
+    window.openEdit = async (id) => {
+        const snap = await getDoc(doc(db,'products',id));
+        if (snap.exists()) openModal({id,...snap.data()});
+    };
+
+    window.closeModal = () => { el('prod-modal').classList.add('hidden'); editingId=null; };
+
+    el('btn-modal-save').onclick = async () => {
+        const name  = el('m-name').value.trim();
+        const price = parseFloat(el('m-price').value);
+        if (!name)        { toast('⚠️ Completează numele produsului!', false); return; }
+        if (isNaN(price)) { toast('⚠️ Completează prețul!', false); return; }
+
+        const data = {
+            name, sku: el('m-sku').value.trim(), category: el('m-cat').value.trim(),
+            price, unit: el('m-unit').value,
+            stock: parseInt(el('m-stock').value)||0,
+            description: el('m-desc').value.trim(),
+            updatedAt: serverTimestamp()
+        };
+
+        try {
+            if (editingId) {
+                await updateDoc(doc(db,'products',editingId), data);
+                toast('✅ Produs actualizat!');
+            } else {
+                await addDoc(collection(db,'products'), {...data, createdAt: serverTimestamp()});
+                toast('✅ Produs adăugat!');
+            }
+            closeModal();
+            await loadProducts();
+        } catch(e) { toast('❌ Eroare: '+e.message, false); }
+    };
+
+    window.deleteProd = async (id, name) => {
+        if (!confirm(`Ștergi produsul "${name}"?`)) return;
+        await deleteDoc(doc(db,'products',id));
+        toast(`✅ Produs șters.`);
+        await loadProducts();
+    };
+
+    el('filter-search').addEventListener('keydown', e=>{if(e.key==='Enter') applyFilters();});
+</script>
+</body>
+</html>
