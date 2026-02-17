@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Vânzări</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='../auth/index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+            <div>
+                <h1 class="text-xl font-bold">🛒 Modul Vânzări</h1>
+                <p id="user-info" class="text-blue-200 text-xs"></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='products.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                📦 Catalog Produse
+            </button>
+            <button id="btn-add"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow transition-colors">
+                ➕ Ofertă Nouă
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- VIEW TOGGLE + FILTRE -->
+<div class="max-w-7xl mx-auto px-4 py-4">
+
+    <!-- Toggle vizualizare -->
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex bg-white rounded-xl shadow p-1 gap-1">
+            <button id="btn-view-table" onclick="setView('table')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-blue-600 text-white">
+                📋 Tabel
+            </button>
+            <button id="btn-view-kanban" onclick="setView('kanban')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100">
+                🗂️ Pipeline
+            </button>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-export"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                📥 Export Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- FILTRE -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div class="lg:col-span-2">
+                <input id="filter-search" type="text" placeholder="Caută după client, număr ofertă..."
+                       class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+            </div>
+            <select id="filter-status" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                <option value="">Toate statusurile</option>
+                <option>Prospect</option>
+                <option>Ofertă trimisă</option>
+                <option>Negociere</option>
+                <option>Câștigată</option>
+                <option>Pierdută</option>
+                <option>Anulată</option>
+            </select>
+            <select id="filter-agent" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                <option value="">Toți agenții</option>
+            </select>
+            <div class="flex gap-2">
+                <button onclick="applyFilters()"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    🔍 Filtrează
+                </button>
+                <button onclick="resetFilters()"
+                        class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATISTICI -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-gray-400">
+            <p class="text-xs text-gray-500">Prospect</p>
+            <p id="stat-prospect" class="text-2xl font-bold text-gray-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-400">
+            <p class="text-xs text-gray-500">Ofertă Trimisă</p>
+            <p id="stat-sent" class="text-2xl font-bold text-blue-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500">Negociere</p>
+            <p id="stat-neg" class="text-2xl font-bold text-yellow-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500">Câștigate</p>
+            <p id="stat-won" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-400">
+            <p class="text-xs text-gray-500">Valoare Câștigată</p>
+            <p id="stat-value" class="text-xl font-bold text-red-600 mt-1">0 RON</p>
+        </div>
+    </div>
+
+    <!-- VIEW: TABEL -->
+    <div id="view-table">
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Nr. Ofertă</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Valoare</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Data Ofertă</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Scadență</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase agent-col">Agent</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-tbody" class="divide-y divide-gray-100">
+                        <tr><td colspan="8" class="text-center py-16 text-gray-400">
+                            <div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: KANBAN PIPELINE -->
+    <div id="view-kanban" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Coloanele sunt generate dinamic -->
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc, deleteDoc, updateDoc }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+        authDomain: "crm-migdalin.firebaseapp.com",
+        projectId: "crm-migdalin",
+        storageBucket: "crm-migdalin.firebasestorage.app",
+        messagingSenderId: "498188629124",
+        appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    const ROLES = {
+        admin:{level:99}, presedinte:{level:6}, director_general:{level:5},
+        director_regional:{level:4}, director_zonal:{level:3}, agent:{level:2}
+    };
+
+    const STATUSES = ['Prospect','Ofertă trimisă','Negociere','Câștigată','Pierdută','Anulată'];
+    const STATUS_COLORS = {
+        'Prospect':       'bg-gray-100 text-gray-700',
+        'Ofertă trimisă': 'bg-blue-100 text-blue-800',
+        'Negociere':      'bg-yellow-100 text-yellow-800',
+        'Câștigată':      'bg-green-100 text-green-800',
+        'Pierdută':       'bg-red-100 text-red-800',
+        'Anulată':        'bg-gray-200 text-gray-500'
+    };
+    const KANBAN_COLS = ['Prospect','Ofertă trimisă','Negociere','Câștigată'];
+
+    let currentUser = null, currentUserData = null;
+    let allSales = [], filteredSales = [];
+    let currentView = 'table';
+
+    const el    = id => document.getElementById(id);
+    const toast = (msg, ok=true) => {
+        const t = el('toast');
+        t.textContent = msg;
+        t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+        t.classList.remove('hidden');
+        setTimeout(()=>t.classList.add('hidden'),3500);
+    };
+
+    onAuthStateChanged(auth, async user => {
+        if (!user) { window.location.href = '../auth/index.html'; return; }
+        currentUser = user;
+        const snap = await getDoc(doc(db,'users',user.uid));
+        if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+        currentUserData = snap.data();
+        el('user-info').textContent = currentUserData.name + ' · ' + currentUserData.email;
+
+        const level = ROLES[currentUserData.role]?.level || 0;
+        if (level <= 2) {
+            document.querySelectorAll('.agent-col').forEach(e=>e.classList.add('hidden'));
+        } else {
+            await loadAgentsFilter();
+        }
+        await loadSales();
+    });
+
+    async function loadAgentsFilter() {
+        const level = ROLES[currentUserData.role]?.level || 0;
+        const q = level >= 4
+            ? query(collection(db,'users'), where('role','==','agent'))
+            : query(collection(db,'users'), where('role','==','agent'), where('managerId','==',currentUser.uid));
+        const snap = await getDocs(q);
+        const sel  = el('filter-agent');
+        snap.forEach(d => {
+            const o = document.createElement('option');
+            o.value = d.id;
+            o.textContent = d.data().name || d.data().email;
+            sel.appendChild(o);
+        });
+    }
+
+    async function loadSales() {
+        try {
+            const level = ROLES[currentUserData.role]?.level || 0;
+            let q;
+            if (level >= 4) {
+                q = query(collection(db,'sales'), orderBy('createdAt','desc'));
+            } else if (level === 3) {
+                q = query(collection(db,'sales'), where('directorZonalId','==',currentUser.uid), orderBy('createdAt','desc'));
+            } else {
+                q = query(collection(db,'sales'), where('agentId','==',currentUser.uid), orderBy('createdAt','desc'));
+            }
+            const snap = await getDocs(q);
+            allSales = [];
+            snap.forEach(d => allSales.push({id:d.id,...d.data()}));
+            updateStats(allSales);
+            applyFilters();
+        } catch(e) {
+            el('sales-tbody').innerHTML = `<tr><td colspan="8" class="text-center py-8 text-red-500">Eroare: ${e.message}</td></tr>`;
+        }
+    }
+
+    function updateStats(sales) {
+        el('stat-prospect').textContent = sales.filter(s=>s.status==='Prospect').length;
+        el('stat-sent').textContent     = sales.filter(s=>s.status==='Ofertă trimisă').length;
+        el('stat-neg').textContent      = sales.filter(s=>s.status==='Negociere').length;
+        el('stat-won').textContent      = sales.filter(s=>s.status==='Câștigată').length;
+        const val = sales.filter(s=>s.status==='Câștigată').reduce((sum,s)=>sum+parseFloat(s.totalWithVat||0),0);
+        el('stat-value').textContent    = val.toLocaleString('ro-RO',{maximumFractionDigits:0}) + ' RON';
+    }
+
+    window.applyFilters = () => {
+        const search = el('filter-search').value.toLowerCase().trim();
+        const status = el('filter-status').value;
+        const agent  = el('filter-agent').value;
+
+        filteredSales = allSales.filter(s => {
+            const ms = !search || (s.offerNumber||'').toLowerCase().includes(search) ||
+                       (s.clientName||'').toLowerCase().includes(search);
+            const mst = !status || s.status === status;
+            const ma  = !agent  || s.agentId === agent;
+            return ms && mst && ma;
+        });
+        currentView === 'table' ? renderTable() : renderKanban();
+    };
+
+    window.resetFilters = () => {
+        ['filter-search','filter-status','filter-agent'].forEach(id => el(id).value = '');
+        applyFilters();
+    };
+
+    // ── TABEL ──────────────────────────────────────────────────────────────────
+    function renderTable() {
+        const level = ROLES[currentUserData.role]?.level || 0;
+        if (!filteredSales.length) {
+            el('sales-tbody').innerHTML = `<tr><td colspan="8" class="text-center py-16 text-gray-400">
+                <div class="text-5xl mb-3">🛒</div><p>Nu există oferte.</p></td></tr>`;
+            return;
+        }
+        el('sales-tbody').innerHTML = filteredSales.map(s => {
+            const sc = STATUS_COLORS[s.status] || 'bg-gray-100 text-gray-700';
+            const exp = s.expiryDate && new Date(s.expiryDate) < new Date() && !['Câștigată','Pierdută','Anulată'].includes(s.status);
+            return `
+            <tr class="hover:bg-blue-50 transition-colors cursor-pointer" onclick="viewSale('${s.id}')">
+                <td class="px-4 py-3 font-mono text-sm font-semibold text-blue-700">${s.offerNumber||'—'}</td>
+                <td class="px-4 py-3">
+                    <div class="font-semibold text-gray-900 text-sm">${s.clientName||'—'}</div>
+                </td>
+                <td class="px-4 py-3 font-bold text-gray-800">${parseFloat(s.totalWithVat||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${sc}">${s.status||'—'}</span></td>
+                <td class="px-4 py-3 text-sm text-gray-600">${s.offerDate||'—'}</td>
+                <td class="px-4 py-3 text-sm ${exp?'text-red-600 font-semibold':' text-gray-600'}">${s.expiryDate||'—'}${exp?' ⚠️':''}</td>
+                <td class="px-4 py-3 text-sm text-gray-600 agent-col ${level<=2?'hidden':''}">${s.agentName||'—'}</td>
+                <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
+                    <div class="flex justify-end gap-2">
+                        <button onclick="viewSale('${s.id}')" title="Vezi" class="text-blue-600 hover:text-blue-800 text-lg">👁️</button>
+                        <button onclick="editSale('${s.id}')" title="Editează" class="text-yellow-600 hover:text-yellow-800 text-lg">✏️</button>
+                        <button onclick="deleteSale('${s.id}','${(s.offerNumber||'').replace(/'/g,'')}')" title="Șterge" class="text-red-600 hover:text-red-800 text-lg">🗑️</button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── KANBAN ─────────────────────────────────────────────────────────────────
+    function renderKanban() {
+        const colColors = {
+            'Prospect':       'border-gray-300',
+            'Ofertă trimisă': 'border-blue-400',
+            'Negociere':      'border-yellow-400',
+            'Câștigată':      'border-green-500'
+        };
+        const colBg = {
+            'Prospect':       'bg-gray-50',
+            'Ofertă trimisă': 'bg-blue-50',
+            'Negociere':      'bg-yellow-50',
+            'Câștigată':      'bg-green-50'
+        };
+        const kanban = document.querySelector('#view-kanban > div');
+        kanban.innerHTML = KANBAN_COLS.map(col => {
+            const items = filteredSales.filter(s=>s.status===col);
+            const total = items.reduce((sum,s)=>sum+parseFloat(s.totalWithVat||0),0);
+            return `
+            <div class="flex flex-col">
+                <div class="rounded-t-xl px-4 py-3 border-t-4 ${colColors[col]} ${colBg[col]} border-x border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-gray-800 text-sm">${col}</h3>
+                        <span class="bg-white text-gray-700 text-xs font-semibold px-2 py-1 rounded-full shadow">${items.length}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">${total.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</p>
+                </div>
+                <div class="flex-1 border-x border-b border-gray-200 rounded-b-xl p-2 space-y-2 min-h-48 ${colBg[col]}">
+                    ${items.length ? items.map(s=>`
+                        <div onclick="viewSale('${s.id}')"
+                             class="bg-white rounded-xl p-3 shadow hover:shadow-md transition-all cursor-pointer border border-gray-100">
+                            <div class="font-mono text-xs text-blue-600 font-semibold mb-1">${s.offerNumber||'—'}</div>
+                            <div class="font-semibold text-gray-800 text-sm">${s.clientName||'—'}</div>
+                            <div class="text-green-600 font-bold text-sm mt-1">${parseFloat(s.totalWithVat||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</div>
+                            <div class="text-xs text-gray-400 mt-1">📅 ${s.expiryDate||'—'} · 👤 ${s.agentName||'—'}</div>
+                        </div>`).join('')
+                    : `<div class="text-center py-8 text-gray-400 text-sm">Fără oferte</div>`}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // ── TOGGLE VIEW ────────────────────────────────────────────────────────────
+    window.setView = (view) => {
+        currentView = view;
+        el('view-table').classList.toggle('hidden', view !== 'table');
+        el('view-kanban').classList.toggle('hidden', view !== 'kanban');
+        el('btn-view-table').className  = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${view==='table'  ?'bg-blue-600 text-white':'text-gray-600 hover:bg-gray-100'}`;
+        el('btn-view-kanban').className = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${view==='kanban' ?'bg-blue-600 text-white':'text-gray-600 hover:bg-gray-100'}`;
+        view === 'table' ? renderTable() : renderKanban();
+    };
+
+    // ── ACȚIUNI ────────────────────────────────────────────────────────────────
+    window.viewSale   = id => window.location.href = `sale.html?id=${id}`;
+    window.editSale   = id => window.location.href = `form.html?id=${id}`;
+    window.deleteSale = async (id, nr) => {
+        if (!confirm(`Ștergi oferta "${nr}"?`)) return;
+        await deleteDoc(doc(db,'sales',id));
+        toast(`✅ Oferta ${nr} ștearsă.`);
+        allSales = allSales.filter(s=>s.id!==id);
+        updateStats(allSales);
+        applyFilters();
+    };
+
+    el('btn-add').onclick = () => window.location.href = 'form.html';
+
+    // ── EXPORT ─────────────────────────────────────────────────────────────────
+    el('btn-export').onclick = () => {
+        if (!filteredSales.length) { toast('Nu există date de exportat.',false); return; }
+        const h = ['Nr. Ofertă','Client','Status','Total fără TVA','TVA','Total cu TVA','Agent','Data Ofertă','Scadență'];
+        const r = filteredSales.map(s=>[
+            s.offerNumber||'',s.clientName||'',s.status||'',
+            s.totalNoVat||'',s.vatAmount||'',s.totalWithVat||'',
+            s.agentName||'',s.offerDate||'',s.expiryDate||''
+        ]);
+        const csv = [h,...r].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+        a.download = `vanzari_${new Date().toLocaleDateString('ro-RO').replace(/\./g,'-')}.csv`;
+        a.click();
+        toast('✅ Export realizat!');
+    };
+
+    el('filter-search').addEventListener('keydown', e => { if(e.key==='Enter') applyFilters(); });
+</script>
+</body>
+</html>
