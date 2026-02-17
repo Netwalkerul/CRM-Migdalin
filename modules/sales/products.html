@@ -223,6 +223,7 @@
         el('m-unit').value  = prod?.unit  || 'buc';
         el('m-stock').value = prod?.stock || '';
         el('m-desc').value  = prod?.description || '';
+        if (!prod) generateSKU();
         el('prod-modal').classList.remove('hidden');
     }
 
@@ -267,6 +268,28 @@
         await loadProducts();
     };
 
+    el('m-name').addEventListener('input', () => {
+        if (!editingId) generateSKU();
+    });
+
+    function generateSKU() {
+        const name = el('m-name').value.trim();
+        if (!name) { el('m-sku').value = ''; return; }
+
+        // Ia prima literă din fiecare cuvânt
+        const prefix = name.split(/\s+/)
+            .map(w => w[0]?.toUpperCase() || '')
+            .join('');
+
+        // Găsește cel mai mare număr existent cu același prefix
+        const existing = allProds
+            .map(p => p.sku || '')
+            .filter(s => s.startsWith(prefix + '-'))
+            .map(s => parseInt(s.split('-')[1]) || 0);
+
+        const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+        el('m-sku').value = `${prefix}-${String(next).padStart(3, '0')}`;
+    }
     el('filter-search').addEventListener('keydown', e=>{if(e.key==='Enter') applyFilters();});
 </script>
 </body>
