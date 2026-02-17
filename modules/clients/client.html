@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Fișă Client</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+    <!-- HEADER -->
+    <header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="window.location.href='index.html'"
+                        class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Listă</button>
+                <div>
+                    <h1 id="client-title" class="text-xl font-bold">Se încarcă...</h1>
+                    <p id="client-subtitle" class="text-blue-200 text-xs"></p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-edit"
+                        class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    ✏️ Editează
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- STATUS BAR -->
+    <div id="status-bar" class="bg-white shadow border-b">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap gap-4 items-center">
+            <span id="badge-status"  class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+            <span id="badge-priority" class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+            <span id="badge-type"    class="px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-700"></span>
+            <span id="badge-agent"   class="text-sm text-gray-600">👤 <span></span></span>
+        </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="bg-white shadow-md border-b sticky top-0 z-10">
+        <div class="max-w-6xl mx-auto px-4 overflow-x-auto">
+            <div id="tab-bar" class="flex gap-1 py-2"></div>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        <div id="tab-content"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp }     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged }
+                                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp }
+                                     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey:            "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+            authDomain:        "crm-migdalin.firebaseapp.com",
+            projectId:         "crm-migdalin",
+            storageBucket:     "crm-migdalin.firebasestorage.app",
+            messagingSenderId: "498188629124",
+            appId:             "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+        };
+
+        const app  = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db   = getFirestore(app);
+
+        let currentUser     = null;
+        let currentUserData = null;
+        let client          = null;
+        let clientId        = new URLSearchParams(window.location.search).get('id');
+        let activeTab       = 0;
+        let interactions    = [];
+
+        const TABS = [
+            '📋 Rezumat',
+            '🏢 Identificare',
+            '📞 Contact',
+            '🚚 Logistică',
+            '🏗️ Structură',
+            '💼 Comercial',
+            '📊 Indicatori',
+            '💬 Interacțiuni',
+            '🔍 Audit'
+        ];
+
+        const el    = id => document.getElementById(id);
+        const toast = (msg, ok = true) => {
+            const t = el('toast');
+            t.textContent = msg;
+            t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium
+                           ${ok ? 'bg-green-600' : 'bg-red-600'}`;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3500);
+        };
+        const row = (label, value) => value ? `
+            <div class="flex py-2 border-b border-gray-50 last:border-0">
+                <span class="text-sm text-gray-500 w-48 flex-shrink-0 font-medium">${label}</span>
+                <span class="text-sm text-gray-800">${value}</span>
+            </div>` : '';
+
+        const card = (title, content) => `
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-4">
+                <h3 class="font-bold text-gray-800 mb-4 pb-2 border-b">${title}</h3>
+                ${content}
+            </div>`;
+
+        // ─── AUTH ────────────────────────────────────────────────────────────────
+        onAuthStateChanged(auth, async user => {
+            if (!user) { window.location.href = '../auth/index.html'; return; }
+            currentUser = user;
+            const snap  = await getDoc(doc(db, 'users', user.uid));
+            if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+            currentUserData = snap.data();
+
+            if (!clientId) { window.location.href = 'index.html'; return; }
+
+            const cSnap = await getDoc(doc(db, 'clients', clientId));
+            if (!cSnap.exists()) { toast('Client negăsit.', false); return; }
+
+            client = { id: cSnap.id, ...cSnap.data() };
+            await loadInteractions();
+            renderHeader();
+            renderTabs();
+            renderTabContent();
+
+            el('btn-edit').onclick = () =>
+                window.location.href = `form.html?id=${clientId}`;
+        });
+
+        // ─── INTERACȚIUNI ────────────────────────────────────────────────────────
+        async function loadInteractions() {
+            try {
+                const q    = query(collection(db, 'interactions'),
+                                   where('clientId', '==', clientId));
+                const snap = await getDocs(q);
+                interactions = [];
+                snap.forEach(d => interactions.push({ id: d.id, ...d.data() }));
+                interactions.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            } catch { interactions = []; }
+        }
+
+        // ─── HEADER ──────────────────────────────────────────────────────────────
+        function renderHeader() {
+            el('client-title').textContent    = client.companyName || 'Client';
+            el('client-subtitle').textContent =
+                `${client.legalForm || ''} · CUI: ${client.cui || '—'} · ${client.city || ''}, ${client.county || ''}`;
+
+            const sColors = { 'Activ':'bg-green-100 text-green-800','Inactiv':'bg-gray-100 text-gray-700',
+                              'Potențial':'bg-yellow-100 text-yellow-800','Blocat':'bg-red-100 text-red-800' };
+            const pColors = { 'A - Strategic':'bg-purple-100 text-purple-800',
+                              'B':'bg-blue-100 text-blue-800','C':'bg-gray-100 text-gray-700' };
+
+            el('badge-status').textContent  = client.status || '—';
+            el('badge-status').className    = `px-3 py-1 rounded-full text-sm font-semibold ${sColors[client.status] || 'bg-gray-100 text-gray-700'}`;
+            el('badge-priority').textContent= client.priority || '—';
+            el('badge-priority').className  = `px-3 py-1 rounded-full text-sm font-semibold ${pColors[client.priority] || 'bg-gray-100 text-gray-700'}`;
+            el('badge-type').textContent    = client.clientType || '—';
+            el('badge-agent').querySelector('span').textContent = client.agentName || '—';
+        }
+
+        // ─── TABS ────────────────────────────────────────────────────────────────
+        function renderTabs() {
+            el('tab-bar').innerHTML = TABS.map((t, i) => `
+                <button onclick="switchTab(${i})" id="tab-btn-${i}"
+                        class="px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all
+                               ${i === activeTab ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-100'}">
+                    ${t}
+                </button>`).join('');
+        }
+
+        window.switchTab = (i) => {
+            activeTab = i;
+            renderTabs();
+            renderTabContent();
+        };
+
+        // ─── TAB CONTENT ─────────────────────────────────────────────────────────
+        function renderTabContent() {
+            const c = client;
+            let html = '';
+
+            switch (activeTab) {
+
+                case 0: // REZUMAT
+                    html = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="bg-white rounded-2xl shadow p-5 border-l-4 border-blue-500">
+                            <p class="text-xs text-gray-500 font-medium uppercase">Vânzări Totale</p>
+                            <p class="text-3xl font-bold text-blue-600 mt-1">—</p>
+                            <p class="text-xs text-gray-400 mt-1">Se calculează din modulul Vânzări</p>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow p-5 border-l-4 border-green-500">
+                            <p class="text-xs text-gray-500 font-medium uppercase">Interacțiuni</p>
+                            <p class="text-3xl font-bold text-green-600 mt-1">${interactions.length}</p>
+                            <p class="text-xs text-gray-400 mt-1">Total înregistrate</p>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow p-5 border-l-4 border-purple-500">
+                            <p class="text-xs text-gray-500 font-medium uppercase">Ultima Interacțiune</p>
+                            <p class="text-2xl font-bold text-purple-600 mt-1">
+                                ${interactions[0]?.date || '—'}
+                            </p>
+                            <p class="text-xs text-gray-400 mt-1">${interactions[0]?.type || ''}</p>
+                        </div>
+                    </div>` +
+                    card('📋 Date Esențiale', `
+                        ${row('Companie', c.companyName)}
+                        ${row('CUI', c.cui)}
+                        ${row('Reg. Com.', c.regCom)}
+                        ${row('Contact', c.contactName + (c.contactRole ? ' · ' + c.contactRole : ''))}
+                        ${row('Telefon', c.phoneMobile || c.phoneFixed)}
+                        ${row('Email', c.emailMain)}
+                        ${row('Oraș / Județ', [c.city, c.county].filter(Boolean).join(', '))}
+                        ${row('Agent', c.agentName)}
+                        ${row('Termen Plată', c.paymentDays ? c.paymentDays + ' zile' : '')}
+                        ${row('Mod Plată', c.paymentMethod)}
+                    `);
+                    break;
+
+                case 1: // IDENTIFICARE
+                    html = card('🏢 Date de Identificare', `
+                        ${row('Nume Companie',  c.companyName)}
+                        ${row('CUI / CIF',      c.cui)}
+                        ${row('Reg. Comerțului',c.regCom)}
+                        ${row('Forma Juridică', c.legalForm)}
+                        ${row('Cod CAEN',       c.caenCode)}
+                        ${row('An Înființare',  c.foundedYear)}
+                        ${row('Dimensiune',     c.companySize)}
+                        ${row('Segment',        c.segment)}
+                        ${row('Sub-segment',    c.subSegment)}
+                        ${row('Sursa Client',   c.sourceType)}
+                    `);
+                    break;
+
+                case 2: // CONTACT
+                    html = card('👤 Contact Principal', `
+                        ${row('Nume', c.contactName)}
+                        ${row('Funcție', c.contactRole)}
+                        ${row('Telefon Mobil', c.phoneMobile)}
+                        ${row('Telefon Fix', c.phoneFixed)}
+                        ${row('Email', c.emailMain)}
+                        ${row('Site Web', c.website ? `<a href="${c.website}" target="_blank" class="text-blue-600 hover:underline">${c.website}</a>` : '')}
+                    `) +
+                    (c.contact2Name ? card('👤 Contact Secundar', `
+                        ${row('Nume', c.contact2Name)}
+                        ${row('Funcție', c.contact2Role)}
+                        ${row('Telefon', c.contact2Phone)}
+                        ${row('Email', c.contact2Email)}
+                    `) : '') +
+                    card('📍 Adresă', `
+                        ${row('Sediu Social', c.addressHQ)}
+                        ${row('Oraș', c.city)}
+                        ${row('Județ', c.county)}
+                        ${row('Zonă Comercială', c.commercialZone)}
+                    `);
+                    break;
+
+                case 3: // LOGISTICĂ
+                    html = card('🚚 Date Logistice', `
+                        ${row('Adresă Livrare', c.addressDelivery || 'Identică cu sediul')}
+                        ${row('Contact Livrare', c.deliveryContact)}
+                        ${row('Telefon Livrare', c.deliveryPhone)}
+                        ${row('Program Lucru', c.workingHours)}
+                        ${row('Transport', c.transportType)}
+                        ${row('Depozit Propriu', c.hasWarehouse)}
+                    `);
+                    break;
+
+                case 4: // STRUCTURĂ
+                    html = card('🏗️ Structură Internă', `
+                        ${row('Agent Responsabil', c.agentName)}
+                        ${row('Director Zonal', c.directorZonalName)}
+                        ${row('Depozit Aprovizionare', c.supplyDepot)}
+                        ${row('Rută / Circuit', c.visitRoute)}
+                        ${row('Frecvență Vizite', c.visitFrequency)}
+                        ${row('Data Atribuirii', c.assignedDate)}
+                    `);
+                    break;
+
+                case 5: // COMERCIAL
+                    html = card('💼 Date Comerciale', `
+                        ${row('Status', c.status)}
+                        ${row('Tip Client', c.clientType)}
+                        ${row('Prioritate', c.priority)}
+                        ${row('Monedă', c.currency)}
+                        ${row('Discount Standard', c.discount ? c.discount + '%' : '')}
+                        ${row('Limită Credit', c.creditLimit ? c.creditLimit + ' RON' : '')}
+                        ${row('Termen Plată', c.paymentDays ? c.paymentDays + ' zile' : '')}
+                        ${row('Mod Plată', c.paymentMethod)}
+                        ${row('Condiții Speciale', c.specialTerms)}
+                        ${row('Notițe', c.notes)}
+                    `);
+                    break;
+
+                case 6: // INDICATORI
+                    html = `
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        ${[
+                            ['💰 Vânzări Totale',      '—', 'border-blue-500',  'text-blue-600'],
+                            ['📅 Vânzări Luna',        '—', 'border-green-500', 'text-green-600'],
+                            ['📈 Vânzări An',          '—', 'border-purple-500','text-purple-600'],
+                            ['⚠️ Sold Restant',        '—', 'border-red-500',   'text-red-600'],
+                            ['🛒 Nr. Comenzi',         '—', 'border-yellow-500','text-yellow-600'],
+                            ['📦 Valoare Medie Cmd.',  '—', 'border-cyan-500',  'text-cyan-600'],
+                            ['📊 Marjă Profit',        '—', 'border-indigo-500','text-indigo-600'],
+                            ['🕐 Ultima Comandă',      '—', 'border-gray-400',  'text-gray-600'],
+                        ].map(([label, val, border, color]) => `
+                            <div class="bg-white rounded-xl shadow p-4 border-l-4 ${border}">
+                                <p class="text-xs text-gray-500 font-medium">${label}</p>
+                                <p class="text-2xl font-bold ${color} mt-1">${val}</p>
+                                <p class="text-xs text-gray-400 mt-1">Din modulul Vânzări</p>
+                            </div>`).join('')}
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+                        ℹ️ Indicatorii financiari se vor completa automat după construirea modulului Vânzări.
+                    </div>`;
+                    break;
+
+                case 7: // INTERACȚIUNI
+                    html = `
+                    <div class="bg-white rounded-2xl shadow-lg p-6 mb-4">
+                        <div class="flex justify-between items-center mb-5">
+                            <h3 class="font-bold text-gray-800 text-lg">💬 Istoric Interacțiuni (${interactions.length})</h3>
+                            <button onclick="showAddInteraction()"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                ➕ Adaugă
+                            </button>
+                        </div>
+
+                        <div id="interaction-form" class="hidden bg-blue-50 rounded-xl p-4 mb-5 border border-blue-200">
+                            <h4 class="font-semibold text-gray-800 mb-3">Interacțiune Nouă</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Tip *</label>
+                                    <select id="int-type" class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                                        <option>Vizită</option>
+                                        <option>Telefon</option>
+                                        <option>Email</option>
+                                        <option>WhatsApp</option>
+                                        <option>Întâlnire</option>
+                                        <option>Reclamație</option>
+                                        <option>Ofertă</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Data și Ora *</label>
+                                    <input id="int-datetime" type="datetime-local"
+                                           value="${new Date().toISOString().slice(0,16)}"
+                                           class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Durată (minute)</label>
+                                    <input id="int-duration" type="number" placeholder="ex. 30"
+                                           class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Rezultat</label>
+                                    <select id="int-result" class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                                        <option>Pozitiv</option>
+                                        <option>Neutru</option>
+                                        <option>Negativ</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Rezumat / Note *</label>
+                                    <textarea id="int-notes" rows="3" placeholder="Descrie ce s-a discutat..."
+                                              class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500"></textarea>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Următoarea Acțiune</label>
+                                    <input id="int-next-action" type="text" placeholder="ex. Trimite ofertă"
+                                           class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Data Acțiunii</label>
+                                    <input id="int-next-date" type="date"
+                                           class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-3">
+                                <button onclick="saveInteraction()"
+                                        class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
+                                    💾 Salvează
+                                </button>
+                                <button onclick="hideInteractionForm()"
+                                        class="border border-gray-300 hover:bg-gray-100 px-5 py-2 rounded-lg text-sm font-medium">
+                                    Anulează
+                                </button>
+                            </div>
+                        </div>
+
+                        ${interactions.length === 0 ? `
+                            <div class="text-center py-12 text-gray-400">
+                                <div class="text-5xl mb-3">💬</div>
+                                <p>Nu există interacțiuni înregistrate.</p>
+                            </div>` :
+                            interactions.map(i => {
+                                const typeIcons = { 'Vizită':'🤝','Telefon':'📞','Email':'📧',
+                                    'WhatsApp':'💬','Întâlnire':'📅','Reclamație':'⚠️','Ofertă':'📋' };
+                                const resColors = { 'Pozitiv':'bg-green-100 text-green-800',
+                                    'Neutru':'bg-gray-100 text-gray-700','Negativ':'bg-red-100 text-red-800' };
+                                return `
+                                <div class="border rounded-xl p-4 mb-3 hover:bg-gray-50 transition-colors">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-2xl">${typeIcons[i.type] || '💬'}</span>
+                                            <div>
+                                                <span class="font-semibold text-gray-900">${i.type}</span>
+                                                <span class="text-gray-500 text-sm ml-2">${i.date || ''} ${i.time || ''}</span>
+                                                ${i.duration ? `<span class="text-gray-400 text-xs ml-2">${i.duration} min</span>` : ''}
+                                            </div>
+                                        </div>
+                                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${resColors[i.result] || 'bg-gray-100 text-gray-700'}">
+                                            ${i.result || ''}
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-gray-700 ml-9">${i.notes || ''}</p>
+                                    ${i.nextAction ? `
+                                    <div class="ml-9 mt-2 text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2">
+                                        ➡️ <strong>Următor:</strong> ${i.nextAction} ${i.nextDate ? '· ' + i.nextDate : ''}
+                                    </div>` : ''}
+                                    <div class="ml-9 mt-2 text-xs text-gray-400">
+                                        Înregistrat de: ${i.createdName || '—'}
+                                    </div>
+                                </div>`;
+                            }).join('')
+                        }
+                    </div>`;
+                    break;
+
+                case 8: // AUDIT
+                    const log = c.auditLog || [];
+                    html = card('🔍 Jurnal Modificări', `
+                        ${log.length === 0 ? '<p class="text-gray-500 text-sm">Nu există înregistrări de audit.</p>' :
+                        `<div class="space-y-3">
+                            ${[...log].reverse().map(entry => `
+                                <div class="border rounded-xl p-4 bg-gray-50">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div>
+                                            <span class="font-semibold text-gray-800 capitalize">${entry.action}</span>
+                                            <span class="text-gray-500 text-sm ml-2">de ${entry.user}</span>
+                                        </div>
+                                        <span class="text-xs text-gray-400">${new Date(entry.timestamp).toLocaleString('ro-RO')}</span>
+                                    </div>
+                                    ${entry.changes && entry.changes.length > 0 ? `
+                                    <div class="mt-2 space-y-1">
+                                        ${entry.changes.map(ch => `
+                                            <div class="text-xs text-gray-600 flex gap-2">
+                                                <span class="font-medium w-32 flex-shrink-0">${ch.field}:</span>
+                                                <span class="text-red-500 line-through">${ch.from || '—'}</span>
+                                                <span>→</span>
+                                                <span class="text-green-600">${ch.to || '—'}</span>
+                                            </div>`).join('')}
+                                    </div>` : ''}
+                                </div>`).join('')}
+                        </div>`}
+                    `) +
+                    card('📋 Informații Sistem', `
+                        ${row('Creată la', c.createdAt ? new Date(c.createdAt.seconds * 1000).toLocaleString('ro-RO') : '—')}
+                        ${row('Creată de', c.createdName)}
+                        ${row('Modificată la', c.updatedAt ? new Date(c.updatedAt.seconds * 1000).toLocaleString('ro-RO') : '—')}
+                        ${row('Modificată de', c.updatedName)}
+                        ${row('Sursa Clientului', c.sourceType)}
+                    `);
+                    break;
+            }
+
+            el('tab-content').innerHTML = html;
+        }
+
+        // ─── INTERACȚIUNI ────────────────────────────────────────────────────────
+        window.showAddInteraction = () => {
+            el('interaction-form').classList.remove('hidden');
+            el('interaction-form').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        window.hideInteractionForm = () =>
+            el('interaction-form').classList.add('hidden');
+
+        window.saveInteraction = async () => {
+            const notes = el('int-notes')?.value?.trim();
+            if (!notes) { toast('Adaugă un rezumat al interacțiunii.', false); return; }
+
+            try {
+                const dt   = el('int-datetime')?.value || '';
+                const [date, time] = dt.split('T');
+                await addDoc(collection(db, 'interactions'), {
+                    clientId:    clientId,
+                    clientName:  client.companyName,
+                    agentId:     currentUser.uid,
+                    type:        el('int-type')?.value || 'Telefon',
+                    date,
+                    time:        time || '',
+                    duration:    el('int-duration')?.value || '',
+                    notes,
+                    result:      el('int-result')?.value || 'Neutru',
+                    nextAction:  el('int-next-action')?.value?.trim() || '',
+                    nextDate:    el('int-next-date')?.value || '',
+                    createdAt:   serverTimestamp(),
+                    createdBy:   currentUser.uid,
+                    createdName: currentUserData.name || currentUserData.email
+                });
+                toast('✅ Interacțiune salvată!');
+                await loadInteractions();
+                hideInteractionForm();
+                renderTabContent();
+            } catch (e) {
+                toast('Eroare: ' + e.message, false);
+            }
+        };
+    </script>
+</body>
+</html>
