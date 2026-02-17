@@ -166,10 +166,13 @@
                 </div>`;
 
             const SUBSEGMENTE = {
-    'HoReCa':                ['Restaurant','Cafenea','Bar / Pub','Hotel','Catering','Fast-food','Pizzerie'],
-    'Retail alimentar':      ['Magazin mixt','Magazin de cartier','Mini-market','Supermarket','Hypermarket'],
-    'Distribuție':           ['Distribuitor local','Cash & Carry','Angrosist'],
+    'HoReCa':                    ['Restaurant','Cafenea','Bar / Pub','Hotel','Catering','Fast-food','Pizzerie'],
+    'Retail alimentar':          ['Magazin mixt','Magazin de cartier','Mini-market','Supermarket','Hypermarket'],
+    'Distribuție':               ['Distribuitor local','Cash & Carry','Angrosist'],
     'Corporate / Instituțional': ['Școli','Spitale','Cămine','Instituții publice'],
+    'Producție':                 [],
+    'Servicii':                  [],
+    'Altele':                    [],
 };
             
             const textarea = (label, id, value = '', rows = 3) => `
@@ -193,7 +196,7 @@
                     ${select('Dimensiune Companie', 'companySize',
                         ['Micro (1-9 ang.)','Mică (10-49 ang.)','Mijlocie (50-249 ang.)','Mare (250+ ang.)'], c.companySize || '')}
                     ${select('Segment', 'segment',
-                        ['Alimentar','Non-alimentar','Servicii','Producție','Distribuție','Retail','HoReCa','Instituțional'], c.segment || '')}
+    ['HoReCa','Retail alimentar','Distribuție','Corporate / Instituțional','Producție','Servicii','Altele'], c.segment || '')}
                     
                     <div>
     <label class="block text-sm font-semibold text-gray-700 mb-1">Sub-segment</label>
