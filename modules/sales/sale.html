@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Fișă Ofertă</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Vânzări</button>
+            <div>
+                <h1 id="offer-number" class="text-xl font-bold">Se încarcă...</h1>
+                <p id="offer-client" class="text-blue-200 text-xs"></p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-print"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                🖨️ Printează
+            </button>
+            <button id="btn-edit"
+                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                ✏️ Editează
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- STATUS BAR -->
+<div class="bg-white shadow border-b">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap gap-3 items-center">
+        <span id="badge-status"  class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+        <span id="badge-agent"   class="text-sm text-gray-600">👤 <span id="agent-name"></span></span>
+        <span id="badge-expiry"  class="text-sm text-gray-500"></span>
+        <span id="badge-expired" class="hidden px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700">⚠️ Ofertă Expirată</span>
+    </div>
+</div>
+
+<div class="max-w-5xl mx-auto px-4 py-6 space-y-6" id="print-area">
+
+    <!-- DATE GENERALE -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800" id="print-offer-number"></h2>
+                <p class="text-gray-500 mt-1" id="print-client"></p>
+            </div>
+            <div class="text-right text-sm text-gray-500 space-y-1">
+                <p>Data ofertă: <strong id="offer-date"></strong></p>
+                <p>Valabilă până: <strong id="expiry-date"></strong></p>
+                <p>Închidere est.: <strong id="close-date"></strong></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-500 mb-1">Agent</p>
+                <p id="d-agent" class="font-semibold text-gray-800 text-sm"></p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-500 mb-1">Status</p>
+                <p id="d-status" class="font-semibold text-gray-800 text-sm"></p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-500 mb-1">Produse</p>
+                <p id="d-items" class="font-semibold text-gray-800 text-sm"></p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <p class="text-xs text-gray-500 mb-1">Total cu TVA</p>
+                <p id="d-total" class="font-bold text-green-600 text-lg"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRODUSE -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">📦 Produse / Servicii</h3>
+
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Produs / Serviciu</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">UM</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Preț Unitar</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Cant.</th>
+                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Disc.%</th>
+                        <th class="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="lines-tbody" class="divide-y divide-gray-100"></tbody>
+            </table>
+        </div>
+
+        <!-- TOTALE -->
+        <div class="mt-4 flex justify-end">
+            <div class="w-64 space-y-2 border-t pt-4">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Total fără TVA:</span>
+                    <span id="t-no-vat" class="font-semibold text-gray-800"></span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">TVA (19%):</span>
+                    <span id="t-vat" class="font-semibold text-gray-800"></span>
+                </div>
+                <div class="flex justify-between border-t pt-2">
+                    <span class="font-bold text-gray-800">TOTAL cu TVA:</span>
+                    <span id="t-with-vat" class="text-xl font-bold text-green-600"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTE -->
+    <div id="notes-section" class="hidden bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-3 pb-2 border-b">📝 Note și Observații</h3>
+        <p id="notes-text" class="text-gray-700 text-sm whitespace-pre-wrap"></p>
+    </div>
+
+    <!-- MOTIV PIERDERE -->
+    <div id="loss-section" class="hidden bg-red-50 border border-red-200 rounded-2xl p-6">
+        <h3 class="text-lg font-bold text-red-800 mb-2">❌ Motiv Pierdere</h3>
+        <p id="loss-text" class="text-red-700 font-medium"></p>
+    </div>
+
+    <!-- AUDIT -->
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">🔍 Jurnal Modificări</h3>
+        <div id="audit-log" class="space-y-3"></div>
+        <div class="mt-4 pt-4 border-t grid grid-cols-2 gap-4 text-sm text-gray-500">
+            <div>Creată la: <strong id="created-at"></strong> de <strong id="created-by"></strong></div>
+            <div>Modificată la: <strong id="updated-at"></strong> de <strong id="updated-by"></strong></div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    header, .no-print { display: none !important; }
+    body { background: white; }
+    #print-area { padding: 0; }
+    .rounded-2xl, .shadow-lg { border-radius: 0; box-shadow: none; }
+}
+</style>
+
+<script type="module">
+    import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc }
+                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+        authDomain: "crm-migdalin.firebaseapp.com",
+        projectId: "crm-migdalin",
+        storageBucket: "crm-migdalin.firebasestorage.app",
+        messagingSenderId: "498188629124",
+        appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    const saleId = new URLSearchParams(window.location.search).get('id');
+    const el     = id => document.getElementById(id);
+    const fmt    = n  => parseFloat(n||0).toLocaleString('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' RON';
+
+    const STATUS_COLORS = {
+        'Prospect':       'bg-gray-100 text-gray-700',
+        'Ofertă trimisă': 'bg-blue-100 text-blue-800',
+        'Negociere':      'bg-yellow-100 text-yellow-800',
+        'Câștigată':      'bg-green-100 text-green-800',
+        'Pierdută':       'bg-red-100 text-red-800',
+        'Anulată':        'bg-gray-200 text-gray-500'
+    };
+
+    onAuthStateChanged(auth, async user => {
+        if (!user) { window.location.href = '../auth/index.html'; return; }
+        if (!saleId) { window.location.href = 'index.html'; return; }
+
+        const snap = await getDoc(doc(db,'sales',saleId));
+        if (!snap.exists()) { window.location.href = 'index.html'; return; }
+
+        const s = snap.data();
+        renderSale(s);
+
+        el('btn-edit').onclick  = () => window.location.href = `form.html?id=${saleId}`;
+        el('btn-print').onclick = () => window.print();
+    });
+
+    function renderSale(s) {
+        // Header
+        el('offer-number').textContent      = s.offerNumber || '—';
+        el('offer-client').textContent      = s.clientName  || '—';
+        el('print-offer-number').textContent= s.offerNumber || '—';
+        el('print-client').textContent      = s.clientName  || '—';
+
+        // Status badge
+        el('badge-status').textContent  = s.status || '—';
+        el('badge-status').className    = `px-3 py-1 rounded-full text-sm font-semibold ${STATUS_COLORS[s.status]||'bg-gray-100 text-gray-700'}`;
+        el('agent-name').textContent    = s.agentName || '—';
+        el('badge-expiry').textContent  = s.expiryDate ? `📅 Valabilă până: ${s.expiryDate}` : '';
+
+        // Verifică dacă e expirată
+        if (s.expiryDate && new Date(s.expiryDate) < new Date() && !['Câștigată','Pierdută','Anulată'].includes(s.status)) {
+            el('badge-expired').classList.remove('hidden');
+        }
+
+        // Date generale
+        el('offer-date').textContent  = s.offerDate  || '—';
+        el('expiry-date').textContent = s.expiryDate || '—';
+        el('close-date').textContent  = s.closeDate  || '—';
+        el('d-agent').textContent     = s.agentName  || '—';
+        el('d-status').textContent    = s.status     || '—';
+        el('d-items').textContent     = (s.lines||[]).length + ' produse';
+        el('d-total').textContent     = fmt(s.totalWithVat);
+
+        // Linii produse
+        const lines = s.lines || [];
+        el('lines-tbody').innerHTML = lines.length
+            ? lines.map((l,i) => {
+                const total = parseFloat(l.price||0) * parseFloat(l.qty||0) * (1 - parseFloat(l.discount||0)/100);
+                return `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-3 py-3 text-sm text-gray-500">${i+1}</td>
+                    <td class="px-3 py-3 font-medium text-gray-900 text-sm">${l.name||'—'}</td>
+                    <td class="px-3 py-3 text-center text-sm text-gray-600">${l.unit||'buc'}</td>
+                    <td class="px-3 py-3 text-right text-sm text-gray-800">${parseFloat(l.price||0).toLocaleString('ro-RO',{minimumFractionDigits:2})} RON</td>
+                    <td class="px-3 py-3 text-center text-sm text-gray-800">${l.qty||0}</td>
+                    <td class="px-3 py-3 text-center text-sm text-gray-600">${l.discount||0}%</td>
+                    <td class="px-3 py-3 text-right font-semibold text-gray-800">${total.toLocaleString('ro-RO',{minimumFractionDigits:2})} RON</td>
+                </tr>`;
+            }).join('')
+            : `<tr><td colspan="7" class="text-center py-8 text-gray-400">Nu există produse.</td></tr>`;
+
+        // Totale
+        el('t-no-vat').textContent   = fmt(s.totalNoVat);
+        el('t-vat').textContent      = fmt(s.vatAmount);
+        el('t-with-vat').textContent = fmt(s.totalWithVat);
+
+        // Note
+        if (s.notes) {
+            el('notes-section').classList.remove('hidden');
+            el('notes-text').textContent = s.notes;
+        }
+
+        // Motiv pierdere
+        if (s.lossReason) {
+            el('loss-section').classList.remove('hidden');
+            el('loss-text').textContent = s.lossReason;
+        }
+
+        // Audit log
+        const log = s.auditLog || [];
+        el('audit-log').innerHTML = log.length
+            ? [...log].reverse().map(entry => `
+                <div class="border rounded-xl p-3 bg-gray-50 text-sm">
+                    <div class="flex justify-between mb-1">
+                        <span class="font-semibold capitalize text-gray-800">${entry.action}</span>
+                        <span class="text-xs text-gray-400">${new Date(entry.timestamp).toLocaleString('ro-RO')}</span>
+                    </div>
+                    <span class="text-gray-500">de ${entry.user}</span>
+                    ${entry.changes?.length ? `
+                    <div class="mt-2 space-y-1">
+                        ${entry.changes.map(ch=>`
+                            <div class="text-xs text-gray-600 flex gap-2">
+                                <span class="font-medium w-28 flex-shrink-0">${ch.field}:</span>
+                                <span class="text-red-500 line-through">${ch.from||'—'}</span>
+                                <span>→</span>
+                                <span class="text-green-600">${ch.to||'—'}</span>
+                            </div>`).join('')}
+                    </div>` : ''}
+                </div>`).join('')
+            : '<p class="text-gray-400 text-sm">Nu există înregistrări de audit.</p>';
+
+        // Info sistem
+        el('created-at').textContent  = s.createdAt  ? new Date(s.createdAt.seconds*1000).toLocaleString('ro-RO')  : '—';
+        el('created-by').textContent  = s.createdName || '—';
+        el('updated-at').textContent  = s.updatedAt  ? new Date(s.updatedAt.seconds*1000).toLocaleString('ro-RO')  : '—';
+        el('updated-by').textContent  = s.updatedName || '—';
+    }
+</script>
+</body>
+</html>
