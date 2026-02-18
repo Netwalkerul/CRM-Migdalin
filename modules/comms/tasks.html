@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Task-uri & Alerte</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-purple-700 to-purple-900 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+            <div>
+                <h1 class="text-xl font-bold">✅ Task-uri & Alerte</h1>
+                <p id="user-info" class="text-purple-200 text-xs"></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="runAutoChecks()"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">
+                🔄 Verifică Alerte
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- TAB NAV -->
+<div class="max-w-7xl mx-auto px-4 pt-4">
+    <div class="flex bg-white rounded-xl shadow p-1 gap-1 w-fit mb-6">
+        <button id="tab-btn-tasks" onclick="setTab('tasks')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-purple-600 text-white">
+            ✅ Task-uri
+        </button>
+        <button id="tab-btn-alerts" onclick="setTab('alerts')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100">
+            🔔 Alerte
+            <span id="alert-tab-badge" class="hidden ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5"></span>
+        </button>
+        <button id="tab-btn-report" onclick="setTab('report')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 manager-only hidden">
+            📊 Raport Activități
+        </button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: TASK-URI -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="tab-tasks" class="max-w-7xl mx-auto px-4 pb-8">
+
+    <!-- Filtre task-uri -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input id="task-search" type="text" placeholder="Caută după client, titlu..."
+                   class="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+            <select id="task-filter-status" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                <option value="">Toate statusurile</option>
+                <option value="Programat">Programat</option>
+                <option value="Finalizat">Finalizat</option>
+                <option value="Depășit">Depășit</option>
+            </select>
+            <select id="task-filter-agent" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm manager-only hidden">
+                <option value="">Toți agenții</option>
+            </select>
+            <div class="flex gap-2">
+                <button onclick="applyTaskFilters()"
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    🔍 Filtrează
+                </button>
+                <button onclick="resetTaskFilters()" class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistici task-uri -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500">Programate</p>
+            <p id="ts-scheduled" class="text-2xl font-bold text-yellow-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500">Finalizate</p>
+            <p id="ts-done" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+            <p class="text-xs text-gray-500">Depășite</p>
+            <p id="ts-overdue" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-400">
+            <p class="text-xs text-gray-500">Total</p>
+            <p id="ts-total" class="text-2xl font-bold text-purple-600 mt-1">0</p>
+        </div>
+    </div>
+
+    <!-- Tabel task-uri -->
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Task</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Scadență</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase manager-only hidden">Agent</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody id="tasks-tbody" class="divide-y divide-gray-100">
+                    <tr><td colspan="6" class="text-center py-16 text-gray-400">
+                        <div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: ALERTE -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="tab-alerts" class="hidden max-w-7xl mx-auto px-4 pb-8">
+
+    <div class="flex justify-between items-center mb-4">
+        <div class="flex gap-2">
+            <button onclick="filterAlerts('all')" id="al-btn-all"
+                    class="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white">Toate</button>
+            <button onclick="filterAlerts('unread')" id="al-btn-unread"
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 bg-white shadow">Necitite</button>
+            <button onclick="filterAlerts('complaint')" id="al-btn-complaint"
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 bg-white shadow">🚨 Reclamații</button>
+            <button onclick="filterAlerts('negative_result')" id="al-btn-neg"
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 bg-white shadow">⚠️ Negative</button>
+        </div>
+        <button onclick="markAllAlertsRead()"
+                class="text-sm text-purple-600 hover:underline">Marchează toate citite</button>
+    </div>
+
+    <div id="alerts-container" class="space-y-2">
+        <div class="text-center py-16 text-gray-400">
+            <div class="text-5xl mb-3">⏳</div><p>Se încarcă alertele...</p>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: RAPORT ACTIVITĂȚI (doar manageri) -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="tab-report" class="hidden max-w-7xl mx-auto px-4 pb-8">
+
+    <!-- Filtre raport -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">De la data</label>
+                <input id="rep-date-from" type="date" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">Până la data</label>
+                <input id="rep-date-to" type="date" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">Agent</label>
+                <select id="rep-agent" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                    <option value="">Toți agenții</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button onclick="generateReport()"
+                        class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    📊 Generează Raport
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sumar raport -->
+    <div id="report-summary" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 hidden">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-400">
+            <p class="text-xs text-gray-500">Total comunicări</p>
+            <p id="rep-total" class="text-2xl font-bold text-purple-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-400">
+            <p class="text-xs text-gray-500">Rezultate pozitive</p>
+            <p id="rep-pozitiv" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-400">
+            <p class="text-xs text-gray-500">Rezultate negative</p>
+            <p id="rep-negativ" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500">Reclamații</p>
+            <p id="rep-complaint" class="text-2xl font-bold text-yellow-600 mt-1">0</p>
+        </div>
+    </div>
+
+    <!-- Tabel raport per agent -->
+    <div id="report-table-wrap" class="hidden">
+        <h3 class="font-bold text-gray-700 mb-3">📋 Activitate per Agent</h3>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Total</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Email</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Telefon</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Vizită</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">WhatsApp</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Întâlnire</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Reclamații</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Pozitive %</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Task-uri depășite</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-tbody" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tabel raport per tip -->
+        <h3 class="font-bold text-gray-700 mb-3">📋 Activitate per Tip Comunicare</h3>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tip</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Total</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Pozitive</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Negative</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Durată medie (min)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-type-tbody" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+            <button onclick="exportReport()"
+                    class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
+                📥 Export Raport CSV
+            </button>
+        </div>
+    </div>
+
+    <div id="report-empty" class="hidden text-center py-16 text-gray-400">
+        <div class="text-5xl mb-3">📊</div>
+        <p>Selectează perioada și apasă "Generează Raport"</p>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy,
+         doc, getDoc, updateDoc, addDoc, Timestamp }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99}, presedinte:{level:6}, director_general:{level:5},
+    director_regional:{level:4}, director_zonal:{level:3}, agent:{level:2}
+};
+const TYPE_ICONS = {
+    'Email':'📧','Telefon':'📞','Vizită':'🚗','WhatsApp':'💬','Întâlnire':'🤝','Reclamație':'⚠️'
+};
+const ALERT_TYPE_LABELS = {
+    follow_up_reminder:    '🔔 Reminder urmărire',
+    negative_result:       '⚠️ Rezultat negativ',
+    complaint:             '🚨 Reclamație',
+    manager_followup_check:'📋 Verificare follow-up',
+    no_contact_30days:     '📵 Fără contact 30 zile',
+    task_overdue:          '❗ Task depășit'
+};
+
+let currentUser = null, currentUserData = null;
+let allTasks = [], filteredTasks = [];
+let allAlerts = [], filteredAlerts = [];
+let allCommsForReport = [], allAgents = [];
+let currentAlertFilter = 'all';
+
+const el    = id => document.getElementById(id);
+const toast = (msg, ok=true) => {
+    const t = el('toast');
+    t.textContent = msg;
+    t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden');
+    setTimeout(()=>t.classList.add('hidden'), 3500);
+};
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href = '../auth/index.html'; return; }
+    currentUser = user;
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+    currentUserData = snap.data();
+    el('user-info').textContent = currentUserData.name + ' · ' + currentUserData.role;
+
+    const level = ROLES[currentUserData.role]?.level || 0;
+    if (level > 2) {
+        document.querySelectorAll('.manager-only').forEach(e => e.classList.remove('hidden'));
+        await loadAgents(level);
+    }
+
+    // Setează perioada implicită raport: luna curentă
+    const now = new Date();
+    const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
+    el('rep-date-from').value = `${y}-${m}-01`;
+    el('rep-date-to').value   = new Date(y, now.getMonth()+1, 0).toISOString().split('T')[0];
+
+    await loadTasks();
+    await loadAlerts();
+    await runAutoChecks(false); // verificare silențioasă la încărcare
+});
+
+// ── LOAD AGENȚI ───────────────────────────────────────────────────────────────
+async function loadAgents(level) {
+    const q = level >= 4
+        ? query(collection(db,'users'), where('role','==','agent'))
+        : query(collection(db,'users'), where('role','==','agent'), where('managerId','==',currentUser.uid));
+    const snap = await getDocs(q);
+    allAgents = [];
+    snap.forEach(d => allAgents.push({id:d.id,...d.data()}));
+
+    [el('task-filter-agent'), el('rep-agent')].forEach(sel => {
+        if (!sel) return;
+        allAgents.forEach(a => {
+            const o = document.createElement('option');
+            o.value = a.id;
+            o.textContent = a.name || a.email;
+            sel.appendChild(o);
+        });
+    });
+}
+
+// ── LOAD TASK-URI ─────────────────────────────────────────────────────────────
+async function loadTasks() {
+    try {
+        const level = ROLES[currentUserData.role]?.level || 0;
+        let q;
+        if (level >= 4) {
+            q = query(collection(db,'comm_tasks'), orderBy('dueDate','asc'));
+        } else if (level === 3) {
+            q = query(collection(db,'comm_tasks'), where('directorZonalId','==',currentUser.uid), orderBy('dueDate','asc'));
+        } else {
+            q = query(collection(db,'comm_tasks'), where('agentId','==',currentUser.uid), orderBy('dueDate','asc'));
+        }
+        const snap = await getDocs(q);
+        allTasks = [];
+        snap.forEach(d => allTasks.push({id:d.id,...d.data()}));
+        applyTaskFilters();
+    } catch(e) {
+        el('tasks-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-500">Eroare: ${e.message}</td></tr>`;
+    }
+}
+
+// ── FILTRE TASK-URI ───────────────────────────────────────────────────────────
+window.applyTaskFilters = () => {
+    const search = el('task-search').value.toLowerCase().trim();
+    const status = el('task-filter-status').value;
+    const agent  = el('task-filter-agent')?.value || '';
+    const now    = new Date();
+
+    filteredTasks = allTasks.filter(t => {
+        const due  = new Date(t.dueDate);
+        const comp = t.status === 'Finalizat';
+        const over = !comp && due < now;
+        const effStatus = comp ? 'Finalizat' : over ? 'Depășit' : 'Programat';
+
+        const ms = !search || (t.title||'').toLowerCase().includes(search) || (t.clientName||'').toLowerCase().includes(search);
+        const mst = !status || effStatus === status;
+        const ma  = !agent  || t.agentId === agent;
+        return ms && mst && ma;
+    });
+    renderTasksTable(now);
+};
+
+window.resetTaskFilters = () => {
+    el('task-search').value = '';
+    el('task-filter-status').value = '';
+    if (el('task-filter-agent')) el('task-filter-agent').value = '';
+    applyTaskFilters();
+};
+
+function renderTasksTable(now) {
+    if (!now) now = new Date();
+    const level = ROLES[currentUserData.role]?.level || 0;
+
+    // Statistici
+    const scheduled = allTasks.filter(t => t.status!=='Finalizat' && new Date(t.dueDate) >= now).length;
+    const done      = allTasks.filter(t => t.status==='Finalizat').length;
+    const overdue   = allTasks.filter(t => t.status!=='Finalizat' && new Date(t.dueDate) < now).length;
+    el('ts-scheduled').textContent = scheduled;
+    el('ts-done').textContent      = done;
+    el('ts-overdue').textContent   = overdue;
+    el('ts-total').textContent     = allTasks.length;
+
+    if (!filteredTasks.length) {
+        el('tasks-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-16 text-gray-400">
+            <div class="text-5xl mb-3">✅</div><p>Niciun task găsit.</p></td></tr>`;
+        return;
+    }
+
+    el('tasks-tbody').innerHTML = filteredTasks.map(t => {
+        const due  = new Date(t.dueDate);
+        const comp = t.status === 'Finalizat';
+        const over = !comp && due < now;
+        const statusLabel = comp ? 'Finalizat' : over ? 'Depășit' : 'Programat';
+        const statusCls   = comp ? 'bg-green-100 text-green-800'
+                          : over ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800';
+        const dueCls = over && !comp ? 'text-red-600 font-semibold' : 'text-gray-600';
+        return `
+        <tr class="hover:bg-purple-50 transition-colors">
+            <td class="px-4 py-3">
+                <p class="text-sm font-medium text-gray-800">${t.title||'—'}</p>
+                ${t.isNegativeFollowUp ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Recontactare negativă</span>' : ''}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-700">${t.clientName||'—'}</td>
+            <td class="px-4 py-3 text-sm ${dueCls}">${t.dueDate||'—'}${over&&!comp?' ⚠️':''}</td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-semibold ${statusCls}">${statusLabel}</span>
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-600 manager-only ${level<=2?'hidden':''}">${t.agentName||'—'}</td>
+            <td class="px-4 py-3 text-right">
+                ${!comp ? `
+                <button onclick="completeTask('${t.id}')"
+                        class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
+                    ✅ Finalizat
+                </button>` : '<span class="text-xs text-green-600">✅ Finalizat</span>'}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+window.completeTask = async (id) => {
+    await updateDoc(doc(db,'comm_tasks',id), {status:'Finalizat', completedAt:Timestamp.now()});
+    toast('✅ Task marcat ca finalizat!');
+    allTasks = allTasks.map(t => t.id===id ? {...t,status:'Finalizat'} : t);
+    applyTaskFilters();
+};
+
+// ── LOAD ALERTE ───────────────────────────────────────────────────────────────
+async function loadAlerts() {
+    try {
+        const q = query(collection(db,'alerts'), where('userId','==',currentUser.uid), orderBy('createdAt','desc'));
+        const snap = await getDocs(q);
+        allAlerts = [];
+        snap.forEach(d => allAlerts.push({id:d.id,...d.data()}));
+        const unread = allAlerts.filter(a=>!a.read).length;
+        const badge = el('alert-tab-badge');
+        if (unread > 0) { badge.textContent = unread; badge.classList.remove('hidden'); }
+        else badge.classList.add('hidden');
+        filterAlerts(currentAlertFilter);
+    } catch(e) {
+        console.error('Eroare alerte:', e);
+    }
+}
+
+window.filterAlerts = (type) => {
+    currentAlertFilter = type;
+    ['all','unread','complaint','neg'].forEach(k => {
+        el(`al-btn-${k}`)?.classList.replace('bg-purple-600','bg-white');
+        el(`al-btn-${k}`)?.classList.replace('text-white','text-gray-600');
+    });
+    const activeBtn = el(`al-btn-${type === 'negative_result' ? 'neg' : type}`);
+    activeBtn?.classList.replace('bg-white','bg-purple-600');
+    activeBtn?.classList.replace('text-gray-600','text-white');
+
+    if (type === 'all')    filteredAlerts = [...allAlerts];
+    else if (type==='unread')  filteredAlerts = allAlerts.filter(a=>!a.read);
+    else filteredAlerts = allAlerts.filter(a=>a.type===type);
+    renderAlerts();
+};
+
+function renderAlerts() {
+    const container = el('alerts-container');
+    if (!filteredAlerts.length) {
+        container.innerHTML = '<div class="text-center py-16 text-gray-400"><div class="text-5xl mb-3">🔔</div><p>Nicio alertă.</p></div>';
+        return;
+    }
+    container.innerHTML = filteredAlerts.map(a => {
+        const typeLabel = ALERT_TYPE_LABELS[a.type] || '🔔 Alertă';
+        const dt = a.createdAt?.toDate ? a.createdAt.toDate().toLocaleString('ro-RO') : '';
+        return `
+        <div class="bg-white rounded-xl shadow p-4 flex items-start justify-between gap-3 ${!a.read?'border-l-4 border-purple-500':'opacity-70'}">
+            <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">${typeLabel}</span>
+                    ${!a.read?'<span class="w-2 h-2 bg-purple-500 rounded-full"></span>':''}
+                </div>
+                <p class="text-sm text-gray-800">${a.message||''}</p>
+                <p class="text-xs text-gray-400 mt-1">${dt}</p>
+            </div>
+            ${!a.read ? `
+            <button onclick="markAlertRead('${a.id}')"
+                    class="flex-shrink-0 text-xs text-purple-600 hover:underline whitespace-nowrap">
+                Marchează citit
+            </button>` : '<span class="text-xs text-gray-400 flex-shrink-0">Citit</span>'}
+        </div>`;
+    }).join('');
+}
+
+window.markAlertRead = async (id) => {
+    await updateDoc(doc(db,'alerts',id), {read:true});
+    allAlerts = allAlerts.map(a => a.id===id ? {...a,read:true} : a);
+    await loadAlerts();
+    toast('✅ Alertă marcată ca citită');
+};
+
+window.markAllAlertsRead = async () => {
+    const unread = allAlerts.filter(a=>!a.read);
+    await Promise.all(unread.map(a => updateDoc(doc(db,'alerts',a.id), {read:true})));
+    await loadAlerts();
+    toast('✅ Toate alertele marcate ca citite');
+};
+
+// ── AUTO CHECKS (la încărcare + buton manual) ─────────────────────────────────
+window.runAutoChecks = async (showToast=true) => {
+    if (showToast) toast('🔄 Se verifică alertele automate...', true);
+    try {
+        const level = ROLES[currentUserData.role]?.level || 0;
+        const now   = new Date();
+        const newAlerts = [];
+
+        // 1. Clienți fără contact 30 zile
+        let clientsQ;
+        if (level >= 4)      clientsQ = query(collection(db,'clients'));
+        else if (level === 3) clientsQ = query(collection(db,'clients'), where('directorZonalId','==',currentUser.uid));
+        else                  clientsQ = query(collection(db,'clients'), where('agentId','==',currentUser.uid));
+
+        const clientsSnap = await getDocs(clientsQ);
+        const clients = [];
+        clientsSnap.forEach(d => clients.push({id:d.id,...d.data()}));
+
+        for (const client of clients) {
+            // Ultimă comunicare pentru client
+            const lastCommQ = query(
+                collection(db,'communications'),
+                where('clientId','==',client.id),
+                orderBy('dateTime','desc')
+            );
+            const lastCommSnap = await getDocs(lastCommQ);
+            if (lastCommSnap.empty) continue;
+            const lastComm = lastCommSnap.docs[0].data();
+            const lastDt   = lastComm.dateTime?.toDate ? lastComm.dateTime.toDate() : new Date(lastComm.dateTime);
+            const daysDiff = (now - lastDt) / (1000*60*60*24);
+
+            if (daysDiff >= 30) {
+                // Verifică dacă alertă de 30 zile deja trimisă recent
+                const existQ = query(
+                    collection(db,'alerts'),
+                    where('userId','==',lastComm.agentId||currentUser.uid),
+                    where('type','==','no_contact_30days'),
+                    where('clientId','==',client.id)
+                );
+                const existSnap = await getDocs(existQ);
+                let alreadySent = false;
+                existSnap.forEach(d => {
+                    const sent = d.data().createdAt?.toDate();
+                    if (sent && (now-sent)/(1000*60*60*24) < 7) alreadySent = true; // nu repetăm în 7 zile
+                });
+                if (!alreadySent) {
+                    newAlerts.push({
+                        userId: lastComm.agentId || currentUser.uid,
+                        message: `📵 Clientul "${client.companyName}" nu a fost contactat de ${Math.floor(daysDiff)} zile!`,
+                        type: 'no_contact_30days',
+                        clientId: client.id,
+                        read: false,
+                        createdAt: Timestamp.now()
+                    });
+                }
+            }
+        }
+
+        // 2. Task-uri depășite → alertă director
+        if (level > 2) {
+            const overdueQ = level >= 4
+                ? query(collection(db,'comm_tasks'), where('status','==','Programat'))
+                : query(collection(db,'comm_tasks'), where('status','==','Programat'), where('directorZonalId','==',currentUser.uid));
+            const overdueSnap = await getDocs(overdueQ);
+            overdueSnap.forEach(d => {
+                const t = {id:d.id,...d.data()};
+                const due = new Date(t.dueDate);
+                if (due < now) {
+                    // Alertă pentru director curent
+                    newAlerts.push({
+                        userId: currentUser.uid,
+                        message: `❗ Task depășit: "${t.title}" (agent: ${t.agentName}, scadență: ${t.dueDate})`,
+                        type: 'task_overdue',
+                        taskId: t.id,
+                        clientId: t.clientId,
+                        agentId: t.agentId,
+                        read: false,
+                        createdAt: Timestamp.now()
+                    });
+                }
+            });
+        }
+
+        // Salvează alertele noi (deduplicare simplă prin tip+clientId+zi)
+        if (newAlerts.length) {
+            await Promise.all(newAlerts.map(a => addDoc(collection(db,'alerts'), a)));
+        }
+
+        await loadAlerts();
+        if (showToast) toast(`✅ Verificare completă. ${newAlerts.length} alerte noi generate.`);
+    } catch(e) {
+        if (showToast) toast('❌ Eroare la verificare: ' + e.message, false);
+        console.error(e);
+    }
+};
+
+// ── RAPORT ACTIVITĂȚI ─────────────────────────────────────────────────────────
+window.generateReport = async () => {
+    const dateFrom = el('rep-date-from').value;
+    const dateTo   = el('rep-date-to').value;
+    const agentFilter = el('rep-agent').value;
+
+    if (!dateFrom || !dateTo) { toast('⚠️ Selectează perioada!', false); return; }
+
+    const level = ROLES[currentUserData.role]?.level || 0;
+    let q;
+    if (level >= 4) q = query(collection(db,'communications'), orderBy('dateTime','desc'));
+    else            q = query(collection(db,'communications'), where('directorZonalId','==',currentUser.uid), orderBy('dateTime','desc'));
+
+    const snap = await getDocs(q);
+    allCommsForReport = [];
+    snap.forEach(d => allCommsForReport.push({id:d.id,...d.data()}));
+
+    // Filtrare după perioadă
+    const from = new Date(dateFrom);
+    const to   = new Date(dateTo + 'T23:59:59');
+    let comms  = allCommsForReport.filter(c => {
+        const dt = c.dateTime?.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+        return dt >= from && dt <= to;
+    });
+    if (agentFilter) comms = comms.filter(c => c.agentId === agentFilter);
+
+    if (!comms.length) {
+        el('report-summary').classList.add('hidden');
+        el('report-table-wrap').classList.add('hidden');
+        el('report-empty').classList.remove('hidden');
+        return;
+    }
+
+    el('report-empty').classList.add('hidden');
+    el('report-summary').classList.remove('hidden');
+    el('report-table-wrap').classList.remove('hidden');
+
+    // Sumar
+    el('rep-total').textContent    = comms.length;
+    el('rep-pozitiv').textContent  = comms.filter(c=>c.result==='Pozitiv').length;
+    el('rep-negativ').textContent  = comms.filter(c=>c.result==='Negativ').length;
+    el('rep-complaint').textContent= comms.filter(c=>c.type==='Reclamație').length;
+
+    // Per agent
+    const agentMap = {};
+    comms.forEach(c => {
+        const key = c.agentId;
+        if (!agentMap[key]) agentMap[key] = {name:c.agentName||'—', total:0, email:0, telefon:0, vizita:0, whatsapp:0, intalnire:0, reclamatie:0, pozitive:0};
+        const a = agentMap[key];
+        a.total++;
+        if (c.type==='Email')      a.email++;
+        if (c.type==='Telefon')    a.telefon++;
+        if (c.type==='Vizită')     a.vizita++;
+        if (c.type==='WhatsApp')   a.whatsapp++;
+        if (c.type==='Întâlnire')  a.intalnire++;
+        if (c.type==='Reclamație') a.reclamatie++;
+        if (c.result==='Pozitiv')  a.pozitive++;
+    });
+
+    // Task-uri depășite per agent
+    const now = new Date();
+    const taskQ = level >= 4
+        ? query(collection(db,'comm_tasks'), where('status','==','Programat'))
+        : query(collection(db,'comm_tasks'), where('status','==','Programat'), where('directorZonalId','==',currentUser.uid));
+    const taskSnap = await getDocs(taskQ);
+    taskSnap.forEach(d => {
+        const t = d.data();
+        if (new Date(t.dueDate) < now && agentMap[t.agentId]) {
+            agentMap[t.agentId].overdueTask = (agentMap[t.agentId].overdueTask||0)+1;
+        }
+    });
+
+    el('report-tbody').innerHTML = Object.values(agentMap).map(a => {
+        const pct = a.total ? Math.round(a.pozitive/a.total*100) : 0;
+        const pctCls = pct>=70?'text-green-600':pct>=40?'text-yellow-600':'text-red-600';
+        return `
+        <tr class="hover:bg-purple-50">
+            <td class="px-4 py-3 font-semibold text-gray-800 text-sm">${a.name}</td>
+            <td class="px-4 py-3 text-center font-bold text-purple-700">${a.total}</td>
+            <td class="px-4 py-3 text-center text-gray-600">${a.email}</td>
+            <td class="px-4 py-3 text-center text-gray-600">${a.telefon}</td>
+            <td class="px-4 py-3 text-center text-gray-600">${a.vizita}</td>
+            <td class="px-4 py-3 text-center text-gray-600">${a.whatsapp}</td>
+            <td class="px-4 py-3 text-center text-gray-600">${a.intalnire}</td>
+            <td class="px-4 py-3 text-center text-gray-600">${a.reclamatie}</td>
+            <td class="px-4 py-3 text-center font-semibold ${pctCls}">${pct}%</td>
+            <td class="px-4 py-3 text-center ${a.overdueTask?'text-red-600 font-bold':'text-gray-400'}">${a.overdueTask||0}</td>
+        </tr>`;
+    }).join('');
+
+    // Per tip
+    const typeMap = {};
+    const TYPES = ['Email','Telefon','Vizită','WhatsApp','Întâlnire','Reclamație'];
+    TYPES.forEach(tp => {
+        const c = comms.filter(x=>x.type===tp);
+        if (!c.length) return;
+        const durations = c.map(x=>parseInt(x.duration)||0).filter(d=>d>0);
+        const avgDur = durations.length ? Math.round(durations.reduce((s,d)=>s+d,0)/durations.length) : '—';
+        typeMap[tp] = {
+            total: c.length,
+            pozitive: c.filter(x=>x.result==='Pozitiv').length,
+            negative: c.filter(x=>x.result==='Negativ').length,
+            avgDur
+        };
+    });
+
+    el('report-type-tbody').innerHTML = Object.entries(typeMap).map(([tp, d]) => `
+        <tr class="hover:bg-purple-50">
+            <td class="px-4 py-3 font-medium text-gray-800">${TYPE_ICONS[tp]||''} ${tp}</td>
+            <td class="px-4 py-3 text-center font-bold text-purple-700">${d.total}</td>
+            <td class="px-4 py-3 text-center text-green-600 font-semibold">${d.pozitive}</td>
+            <td class="px-4 py-3 text-center text-red-600 font-semibold">${d.negative}</td>
+            <td class="px-4 py-3 text-center text-gray-600">${d.avgDur}</td>
+        </tr>`).join('');
+
+    toast('✅ Raport generat!');
+};
+
+// ── EXPORT RAPORT ─────────────────────────────────────────────────────────────
+window.exportReport = () => {
+    const rows = [['Agent','Total','Email','Telefon','Vizită','WhatsApp','Întâlnire','Reclamații','Pozitive %','Task-uri depășite']];
+    el('report-tbody').querySelectorAll('tr').forEach(tr => {
+        rows.push([...tr.querySelectorAll('td')].map(td => td.textContent.trim()));
+    });
+    const csv = rows.map(r => r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'}));
+    a.download = `raport_comunicari_${el('rep-date-from').value}_${el('rep-date-to').value}.csv`;
+    a.click();
+    toast('✅ Raport exportat!');
+};
+
+// ── TAB SWITCH ────────────────────────────────────────────────────────────────
+window.setTab = (tab) => {
+    ['tasks','alerts','report'].forEach(t => {
+        el(`tab-${t}`).classList.toggle('hidden', t!==tab);
+        const btn = el(`tab-btn-${t}`);
+        if (btn) {
+            btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${t===tab?'bg-purple-600 text-white':'text-gray-600 hover:bg-gray-100'}`;
+        }
+    });
+};
+</script>
+</body>
+</html>
