@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Comunicări</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-purple-700 to-purple-900 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='../auth/index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+            <div>
+                <h1 class="text-xl font-bold">💬 Modul Comunicări</h1>
+                <p id="user-info" class="text-purple-200 text-xs"></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <!-- Clopotel alerte -->
+            <div class="relative">
+                <button onclick="toggleAlerts()"
+                        class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm relative">
+                    🔔
+                    <span id="alert-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold"></span>
+                </button>
+                <!-- Dropdown alerte -->
+                <div id="alert-panel" class="hidden absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-2xl z-50 border border-gray-100">
+                    <div class="px-4 py-3 border-b flex justify-between items-center">
+                        <h3 class="font-bold text-gray-800">🔔 Alerte & Notificări</h3>
+                        <button onclick="markAllRead()" class="text-xs text-purple-600 hover:underline">Marchează toate citite</button>
+                    </div>
+                    <div id="alert-list" class="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                        <p class="text-center text-gray-400 py-8 text-sm">Se încarcă...</p>
+                    </div>
+                </div>
+            </div>
+            <button onclick="window.location.href='form.html'"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow transition-colors">
+                ➕ Comunicare Nouă
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- VIEW TOGGLE -->
+<div class="max-w-7xl mx-auto px-4 py-4">
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex bg-white rounded-xl shadow p-1 gap-1">
+            <button id="btn-view-list" onclick="setView('list')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-purple-600 text-white">
+                📋 Listă
+            </button>
+            <button id="btn-view-calendar" onclick="setView('calendar')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100">
+                📅 Calendar
+            </button>
+            <button id="btn-view-tasks" onclick="setView('tasks')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100">
+                ✅ Task-uri
+            </button>
+        </div>
+        <button onclick="exportCSV()"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            📥 Export Excel
+        </button>
+    </div>
+
+    <!-- FILTRE -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div class="lg:col-span-2">
+                <input id="filter-search" type="text" placeholder="Caută după client, rezumat..."
+                       class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm" />
+            </div>
+            <select id="filter-type" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                <option value="">Toate tipurile</option>
+                <option>Email</option>
+                <option>Telefon</option>
+                <option>Vizită</option>
+                <option>WhatsApp</option>
+                <option>Întâlnire</option>
+                <option>Reclamație</option>
+            </select>
+            <select id="filter-result" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                <option value="">Toate rezultatele</option>
+                <option>Pozitiv</option>
+                <option>Neutru</option>
+                <option>Negativ</option>
+            </select>
+            <select id="filter-agent" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm agent-col hidden">
+                <option value="">Toți agenții</option>
+            </select>
+            <div class="flex gap-2">
+                <button onclick="applyFilters()"
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    🔍 Filtrează
+                </button>
+                <button onclick="resetFilters()" class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">✕</button>
+            </div>
+        </div>
+        <!-- Filtru dată -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">De la data</label>
+                <input id="filter-date-from" type="date" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">Până la data</label>
+                <input id="filter-date-to" type="date" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+            </div>
+        </div>
+    </div>
+
+    <!-- STATISTICI -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-400">
+            <p class="text-xs text-gray-500">Total</p>
+            <p id="stat-total" class="text-2xl font-bold text-purple-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-400">
+            <p class="text-xs text-gray-500">Email</p>
+            <p id="stat-email" class="text-2xl font-bold text-blue-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-400">
+            <p class="text-xs text-gray-500">Telefon</p>
+            <p id="stat-telefon" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500">Vizită / Întâlnire</p>
+            <p id="stat-vizita" class="text-2xl font-bold text-yellow-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500">Rezultat Pozitiv</p>
+            <p id="stat-pozitiv" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-400">
+            <p class="text-xs text-gray-500">Rezultat Negativ</p>
+            <p id="stat-negativ" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+    </div>
+
+    <!-- ── VIEW: LISTĂ ── -->
+    <div id="view-list">
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tip</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Data & Ora</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Durată</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Rezultat</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Urmărire</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase agent-col hidden">Agent</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comms-tbody" class="divide-y divide-gray-100">
+                        <tr><td colspan="8" class="text-center py-16 text-gray-400">
+                            <div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── VIEW: CALENDAR ── -->
+    <div id="view-calendar" class="hidden">
+        <div class="bg-white rounded-2xl shadow-lg p-4">
+            <!-- Nav calendar -->
+            <div class="flex items-center justify-between mb-4">
+                <button onclick="prevMonth()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">← Luna anterioară</button>
+                <h2 id="cal-title" class="text-lg font-bold text-gray-800"></h2>
+                <button onclick="nextMonth()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">Luna următoare →</button>
+            </div>
+            <!-- Zile săptămână -->
+            <div class="grid grid-cols-7 gap-1 mb-2">
+                <div class="text-center text-xs font-semibold text-gray-500 py-2">Lun</div>
+                <div class="text-center text-xs font-semibold text-gray-500 py-2">Mar</div>
+                <div class="text-center text-xs font-semibold text-gray-500 py-2">Mie</div>
+                <div class="text-center text-xs font-semibold text-gray-500 py-2">Joi</div>
+                <div class="text-center text-xs font-semibold text-gray-500 py-2">Vin</div>
+                <div class="text-center text-xs font-semibold text-gray-500 py-2 text-blue-500">Sâm</div>
+                <div class="text-center text-xs font-semibold text-gray-500 py-2 text-red-500">Dum</div>
+            </div>
+            <div id="cal-grid" class="grid grid-cols-7 gap-1"></div>
+        </div>
+        <!-- Detalii zi selectată -->
+        <div id="cal-day-detail" class="hidden mt-4 bg-white rounded-2xl shadow-lg p-4">
+            <h3 id="cal-day-title" class="font-bold text-gray-800 mb-3"></h3>
+            <div id="cal-day-list" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- ── VIEW: TASK-URI ── -->
+    <div id="view-tasks" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Task-uri programate -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-yellow-50 border-b border-yellow-200 px-4 py-3 flex justify-between items-center">
+                    <h3 class="font-bold text-yellow-800">⏰ Task-uri Programate</h3>
+                    <span id="task-scheduled-count" class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full">0</span>
+                </div>
+                <div id="tasks-scheduled" class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+                    <p class="text-center text-gray-400 py-8 text-sm">Niciun task programat</p>
+                </div>
+            </div>
+            <!-- Task-uri finalizate -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-green-50 border-b border-green-200 px-4 py-3 flex justify-between items-center">
+                    <h3 class="font-bold text-green-800">✅ Task-uri Finalizate</h3>
+                    <span id="task-done-count" class="bg-green-200 text-green-800 text-xs font-bold px-2 py-1 rounded-full">0</span>
+                </div>
+                <div id="tasks-done" class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+                    <p class="text-center text-gray-400 py-8 text-sm">Niciun task finalizat</p>
+                </div>
+            </div>
+        </div>
+        <!-- Task-uri cu întârziere -->
+        <div class="mt-6 bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="bg-red-50 border-b border-red-200 px-4 py-3 flex justify-between items-center">
+                <h3 class="font-bold text-red-800">🚨 Task-uri Depășite / Fără Follow-up</h3>
+                <span id="task-overdue-count" class="bg-red-200 text-red-800 text-xs font-bold px-2 py-1 rounded-full">0</span>
+            </div>
+            <div id="tasks-overdue" class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                <p class="text-center text-gray-400 py-8 text-sm">Niciun task depășit 🎉</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL detalii comunicare -->
+<div id="modal-comm" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div class="flex justify-between items-center px-6 py-4 border-b">
+            <h2 class="text-lg font-bold text-gray-800">📋 Detalii Comunicare</h2>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+        <div id="modal-content" class="px-6 py-4"></div>
+        <div class="px-6 py-4 border-t flex justify-end gap-3">
+            <button id="modal-edit-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium">✏️ Editează</button>
+            <button onclick="closeModal()" class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">Închide</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc, deleteDoc, updateDoc, addDoc, Timestamp }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99}, presedinte:{level:6}, director_general:{level:5},
+    director_regional:{level:4}, director_zonal:{level:3}, agent:{level:2}
+};
+
+const TYPE_ICONS = {
+    'Email':'📧', 'Telefon':'📞', 'Vizită':'🚗', 'WhatsApp':'💬',
+    'Întâlnire':'🤝', 'Reclamație':'⚠️'
+};
+const RESULT_COLORS = {
+    'Pozitiv':'bg-green-100 text-green-800',
+    'Neutru': 'bg-gray-100 text-gray-700',
+    'Negativ':'bg-red-100 text-red-800'
+};
+
+let currentUser = null, currentUserData = null;
+let allComms = [], filteredComms = [];
+let allTasks = [];
+let currentView = 'list';
+let calYear, calMonth;
+
+const el    = id => document.getElementById(id);
+const toast = (msg, ok=true) => {
+    const t = el('toast');
+    t.textContent = msg;
+    t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden');
+    setTimeout(()=>t.classList.add('hidden'), 3500);
+};
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href = '../auth/index.html'; return; }
+    currentUser = user;
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+    currentUserData = snap.data();
+    el('user-info').textContent = currentUserData.name + ' · ' + currentUserData.role;
+
+    const level = ROLES[currentUserData.role]?.level || 0;
+    if (level > 2) {
+        document.querySelectorAll('.agent-col').forEach(e => e.classList.remove('hidden'));
+        await loadAgentsFilter();
+    }
+
+    const now = new Date();
+    calYear  = now.getFullYear();
+    calMonth = now.getMonth();
+
+    await loadComms();
+    await loadTasks();
+    await loadAlerts();
+});
+
+// ── LOAD AGENTS FILTER ────────────────────────────────────────────────────────
+async function loadAgentsFilter() {
+    const level = ROLES[currentUserData.role]?.level || 0;
+    const q = level >= 4
+        ? query(collection(db,'users'), where('role','==','agent'))
+        : query(collection(db,'users'), where('role','==','agent'), where('managerId','==',currentUser.uid));
+    const snap = await getDocs(q);
+    const sel = el('filter-agent');
+    snap.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id;
+        o.textContent = d.data().name || d.data().email;
+        sel.appendChild(o);
+    });
+}
+
+// ── LOAD COMUNICĂRI ───────────────────────────────────────────────────────────
+async function loadComms() {
+    try {
+        const level = ROLES[currentUserData.role]?.level || 0;
+        let q;
+        if (level >= 4) {
+            q = query(collection(db,'communications'), orderBy('dateTime','desc'));
+        } else if (level === 3) {
+            q = query(collection(db,'communications'), where('directorZonalId','==',currentUser.uid), orderBy('dateTime','desc'));
+        } else {
+            q = query(collection(db,'communications'), where('agentId','==',currentUser.uid), orderBy('dateTime','desc'));
+        }
+        const snap = await getDocs(q);
+        allComms = [];
+        snap.forEach(d => allComms.push({id:d.id,...d.data()}));
+        updateStats(allComms);
+        applyFilters();
+    } catch(e) {
+        el('comms-tbody').innerHTML = `<tr><td colspan="8" class="text-center py-8 text-red-500">Eroare: ${e.message}</td></tr>`;
+    }
+}
+
+// ── LOAD TASK-URI ─────────────────────────────────────────────────────────────
+async function loadTasks() {
+    try {
+        const level = ROLES[currentUserData.role]?.level || 0;
+        let q;
+        if (level >= 4) {
+            q = query(collection(db,'comm_tasks'), orderBy('dueDate','asc'));
+        } else if (level === 3) {
+            q = query(collection(db,'comm_tasks'), where('directorZonalId','==',currentUser.uid), orderBy('dueDate','asc'));
+        } else {
+            q = query(collection(db,'comm_tasks'), where('agentId','==',currentUser.uid), orderBy('dueDate','asc'));
+        }
+        const snap = await getDocs(q);
+        allTasks = [];
+        snap.forEach(d => allTasks.push({id:d.id,...d.data()}));
+        renderTasks();
+    } catch(e) {
+        console.error('Eroare task-uri:', e);
+    }
+}
+
+// ── LOAD ALERTE ───────────────────────────────────────────────────────────────
+async function loadAlerts() {
+    try {
+        const q = query(collection(db,'alerts'), where('userId','==',currentUser.uid), orderBy('createdAt','desc'));
+        const snap = await getDocs(q);
+        const alerts = [];
+        snap.forEach(d => alerts.push({id:d.id,...d.data()}));
+        const unread = alerts.filter(a => !a.read);
+        const badge = el('alert-badge');
+        if (unread.length > 0) {
+            badge.textContent = unread.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+        renderAlertList(alerts);
+    } catch(e) {
+        console.error('Eroare alerte:', e);
+    }
+}
+
+function renderAlertList(alerts) {
+    const list = el('alert-list');
+    if (!alerts.length) {
+        list.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">Nicio alertă</p>';
+        return;
+    }
+    list.innerHTML = alerts.map(a => `
+        <div class="px-4 py-3 ${a.read ? 'opacity-50' : 'bg-purple-50'} hover:bg-gray-50 cursor-pointer"
+             onclick="markAlertRead('${a.id}')">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm font-medium text-gray-800">${a.message || ''}</p>
+                    <p class="text-xs text-gray-400 mt-1">${a.createdAt?.toDate ? a.createdAt.toDate().toLocaleString('ro-RO') : ''}</p>
+                </div>
+                ${!a.read ? '<span class="w-2 h-2 bg-purple-500 rounded-full mt-1 flex-shrink-0"></span>' : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+window.toggleAlerts = () => {
+    el('alert-panel').classList.toggle('hidden');
+};
+window.markAlertRead = async (id) => {
+    await updateDoc(doc(db,'alerts',id), {read:true});
+    await loadAlerts();
+};
+window.markAllRead = async () => {
+    const q = query(collection(db,'alerts'), where('userId','==',currentUser.uid), where('read','==',false));
+    const snap = await getDocs(q);
+    const updates = [];
+    snap.forEach(d => updates.push(updateDoc(doc(db,'alerts',d.id), {read:true})));
+    await Promise.all(updates);
+    await loadAlerts();
+    toast('✅ Toate alertele marcate ca citite');
+};
+
+// Închide panoul alerte la click în afara lui
+document.addEventListener('click', e => {
+    const panel = el('alert-panel');
+    const btn = e.target.closest('button');
+    if (!panel.classList.contains('hidden') && !panel.contains(e.target) && !btn?.onclick?.toString().includes('toggleAlerts')) {
+        panel.classList.add('hidden');
+    }
+});
+
+// ── STATISTICI ────────────────────────────────────────────────────────────────
+function updateStats(comms) {
+    el('stat-total').textContent   = comms.length;
+    el('stat-email').textContent   = comms.filter(c=>c.type==='Email').length;
+    el('stat-telefon').textContent = comms.filter(c=>c.type==='Telefon').length;
+    el('stat-vizita').textContent  = comms.filter(c=>c.type==='Vizită'||c.type==='Întâlnire').length;
+    el('stat-pozitiv').textContent = comms.filter(c=>c.result==='Pozitiv').length;
+    el('stat-negativ').textContent = comms.filter(c=>c.result==='Negativ').length;
+}
+
+// ── FILTRE ────────────────────────────────────────────────────────────────────
+window.applyFilters = () => {
+    const search  = el('filter-search').value.toLowerCase().trim();
+    const type    = el('filter-type').value;
+    const result  = el('filter-result').value;
+    const agent   = el('filter-agent').value;
+    const dateFrom = el('filter-date-from').value;
+    const dateTo   = el('filter-date-to').value;
+
+    filteredComms = allComms.filter(c => {
+        const ms = !search || (c.clientName||'').toLowerCase().includes(search) || (c.summary||'').toLowerCase().includes(search);
+        const mt = !type   || c.type === type;
+        const mr = !result || c.result === result;
+        const ma = !agent  || c.agentId === agent;
+        const dt = c.dateTime?.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+        const mdf = !dateFrom || dt >= new Date(dateFrom);
+        const mdt = !dateTo   || dt <= new Date(dateTo + 'T23:59:59');
+        return ms && mt && mr && ma && mdf && mdt;
+    });
+
+    if (currentView === 'list') renderTable();
+    else if (currentView === 'calendar') renderCalendar();
+};
+
+window.resetFilters = () => {
+    ['filter-search','filter-type','filter-result','filter-agent','filter-date-from','filter-date-to']
+        .forEach(id => el(id).value = '');
+    applyFilters();
+};
+
+// ── RENDER TABEL ──────────────────────────────────────────────────────────────
+function renderTable() {
+    const level = ROLES[currentUserData.role]?.level || 0;
+    if (!filteredComms.length) {
+        el('comms-tbody').innerHTML = `<tr><td colspan="8" class="text-center py-16 text-gray-400">
+            <div class="text-5xl mb-3">💬</div><p>Nicio comunicare găsită.</p></td></tr>`;
+        return;
+    }
+    el('comms-tbody').innerHTML = filteredComms.map(c => {
+        const rc  = RESULT_COLORS[c.result] || 'bg-gray-100 text-gray-700';
+        const ico = TYPE_ICONS[c.type] || '💬';
+        const dt  = c.dateTime?.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+        const dtStr = dt.toLocaleString('ro-RO', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        const followUp = c.nextActionDate || '—';
+        return `
+        <tr class="hover:bg-purple-50 transition-colors cursor-pointer" onclick="viewComm('${c.id}')">
+            <td class="px-4 py-3">
+                <div class="font-semibold text-gray-900 text-sm">${c.clientName||'—'}</div>
+            </td>
+            <td class="px-4 py-3">
+                <span class="text-lg">${ico}</span>
+                <span class="text-sm text-gray-700 ml-1">${c.type||'—'}</span>
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-600">${dtStr}</td>
+            <td class="px-4 py-3 text-sm text-gray-600">${c.duration ? c.duration+' min' : '—'}</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${rc}">${c.result||'—'}</span></td>
+            <td class="px-4 py-3 text-sm text-gray-600">${followUp}</td>
+            <td class="px-4 py-3 text-sm text-gray-600 agent-col ${level<=2?'hidden':''}">${c.agentName||'—'}</td>
+            <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
+                <div class="flex justify-end gap-2">
+                    <button onclick="viewComm('${c.id}')" title="Vezi" class="text-purple-600 hover:text-purple-800 text-lg">👁️</button>
+                    <button onclick="editComm('${c.id}')" title="Editează" class="text-yellow-600 hover:text-yellow-800 text-lg">✏️</button>
+                    <button onclick="deleteComm('${c.id}','${(c.clientName||'').replace(/'/g,'')}')" title="Șterge" class="text-red-600 hover:text-red-800 text-lg">🗑️</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ── RENDER CALENDAR ───────────────────────────────────────────────────────────
+function renderCalendar() {
+    const months = ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie',
+                    'Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
+    el('cal-title').textContent = `${months[calMonth]} ${calYear}`;
+
+    const firstDay = new Date(calYear, calMonth, 1);
+    const lastDay  = new Date(calYear, calMonth+1, 0);
+    // Luni=0...Dum=6 (ISO: Luni e prima zi)
+    let startDow = firstDay.getDay(); // 0=Dum
+    startDow = startDow === 0 ? 6 : startDow - 1; // convertim la Lun=0
+
+    const grid = el('cal-grid');
+    grid.innerHTML = '';
+
+    // Zile goale la început
+    for (let i = 0; i < startDow; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'min-h-16';
+        grid.appendChild(empty);
+    }
+
+    // Comunicări din luna curentă
+    const commsThisMonth = filteredComms.filter(c => {
+        const dt = c.dateTime?.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+        return dt.getFullYear() === calYear && dt.getMonth() === calMonth;
+    });
+
+    const today = new Date();
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+        const dayComms = commsThisMonth.filter(c => {
+            const dt = c.dateTime?.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+            return dt.getDate() === d;
+        });
+        const isToday = today.getDate()===d && today.getMonth()===calMonth && today.getFullYear()===calYear;
+        const cell = document.createElement('div');
+        cell.className = `min-h-16 rounded-xl p-1 border cursor-pointer hover:border-purple-400 transition-colors ${isToday ? 'border-purple-500 bg-purple-50' : 'border-gray-100 bg-white'}`;
+        cell.onclick = () => showDayDetail(d, dayComms);
+        cell.innerHTML = `
+            <div class="text-xs font-semibold ${isToday ? 'text-purple-700' : 'text-gray-600'} mb-1">${d}</div>
+            ${dayComms.slice(0,2).map(c => `
+                <div class="text-xs bg-purple-100 text-purple-800 rounded px-1 py-0.5 mb-0.5 truncate">
+                    ${TYPE_ICONS[c.type]||'💬'} ${c.clientName||''}
+                </div>`).join('')}
+            ${dayComms.length > 2 ? `<div class="text-xs text-gray-400">+${dayComms.length-2} mai multe</div>` : ''}
+        `;
+        grid.appendChild(cell);
+    }
+}
+
+function showDayDetail(d, comms) {
+    el('cal-day-detail').classList.remove('hidden');
+    el('cal-day-title').textContent = `Comunicări pe ${d} ${el('cal-title').textContent}`;
+    if (!comms.length) {
+        el('cal-day-list').innerHTML = '<p class="text-gray-400 text-sm">Nicio comunicare în această zi.</p>';
+        return;
+    }
+    el('cal-day-list').innerHTML = comms.map(c => {
+        const rc  = RESULT_COLORS[c.result] || 'bg-gray-100 text-gray-700';
+        const ico = TYPE_ICONS[c.type] || '💬';
+        const dt  = c.dateTime?.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+        return `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-purple-50 cursor-pointer" onclick="viewComm('${c.id}')">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">${ico}</span>
+                <div>
+                    <p class="font-semibold text-gray-800 text-sm">${c.clientName||'—'}</p>
+                    <p class="text-xs text-gray-500">${dt.toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'})} · ${c.agentName||''}</p>
+                </div>
+            </div>
+            <span class="px-2 py-1 rounded-full text-xs font-semibold ${rc}">${c.result||'—'}</span>
+        </div>`;
+    }).join('');
+}
+
+window.prevMonth = () => { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); el('cal-day-detail').classList.add('hidden'); };
+window.nextMonth = () => { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); el('cal-day-detail').classList.add('hidden'); };
+
+// ── RENDER TASK-URI ───────────────────────────────────────────────────────────
+function renderTasks() {
+    const now = new Date();
+    const scheduled = allTasks.filter(t => t.status === 'Programat' && new Date(t.dueDate) >= now);
+    const done      = allTasks.filter(t => t.status === 'Finalizat');
+    const overdue   = allTasks.filter(t => t.status === 'Programat' && new Date(t.dueDate) < now);
+
+    el('task-scheduled-count').textContent = scheduled.length;
+    el('task-done-count').textContent      = done.length;
+    el('task-overdue-count').textContent   = overdue.length;
+
+    el('tasks-scheduled').innerHTML = scheduled.length
+        ? scheduled.map(t => taskCard(t, 'yellow')).join('')
+        : '<p class="text-center text-gray-400 py-8 text-sm">Niciun task programat 🎉</p>';
+
+    el('tasks-done').innerHTML = done.length
+        ? done.map(t => taskCard(t, 'green')).join('')
+        : '<p class="text-center text-gray-400 py-8 text-sm">Niciun task finalizat</p>';
+
+    el('tasks-overdue').innerHTML = overdue.length
+        ? overdue.map(t => taskCard(t, 'red')).join('')
+        : '<p class="text-center text-gray-400 py-8 text-sm">Niciun task depășit 🎉</p>';
+}
+
+function taskCard(t, color) {
+    const colors = {
+        yellow: 'border-yellow-200 bg-yellow-50',
+        green:  'border-green-200 bg-green-50',
+        red:    'border-red-200 bg-red-50'
+    };
+    const btnColor = {
+        yellow: 'bg-green-500 hover:bg-green-600',
+        red:    'bg-green-500 hover:bg-green-600',
+        green:  'bg-gray-300 cursor-default'
+    };
+    return `
+    <div class="px-4 py-3 border-l-4 ${colors[color]} flex justify-between items-start gap-2">
+        <div>
+            <p class="text-sm font-semibold text-gray-800">${t.title||'Task'}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${t.clientName||''} · ${t.agentName||''}</p>
+            <p class="text-xs text-gray-400 mt-0.5">📅 Scadență: ${t.dueDate||'—'}</p>
+        </div>
+        ${t.status !== 'Finalizat' ? `
+        <button onclick="completeTask('${t.id}')"
+                class="${btnColor[color]} text-white text-xs px-3 py-1 rounded-lg flex-shrink-0 transition-colors">
+            ✅ Finalizat
+        </button>` : '<span class="text-xs text-green-600 flex-shrink-0">✅</span>'}
+    </div>`;
+}
+
+window.completeTask = async (id) => {
+    await updateDoc(doc(db,'comm_tasks',id), {status:'Finalizat', completedAt: Timestamp.now()});
+    toast('✅ Task marcat ca finalizat!');
+    await loadTasks();
+};
+
+// ── MODAL DETALII ─────────────────────────────────────────────────────────────
+window.viewComm = (id) => {
+    const c = allComms.find(x => x.id === id);
+    if (!c) return;
+    const ico = TYPE_ICONS[c.type] || '💬';
+    const rc  = RESULT_COLORS[c.result] || 'bg-gray-100 text-gray-700';
+    const dt  = c.dateTime?.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+    el('modal-content').innerHTML = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div><p class="text-xs text-gray-500">Client</p><p class="font-semibold">${c.clientName||'—'}</p></div>
+                <div><p class="text-xs text-gray-500">Agent</p><p class="font-semibold">${c.agentName||'—'}</p></div>
+                <div><p class="text-xs text-gray-500">Tip comunicare</p><p class="font-semibold">${ico} ${c.type||'—'}</p></div>
+                <div><p class="text-xs text-gray-500">Data și ora</p><p class="font-semibold">${dt.toLocaleString('ro-RO')}</p></div>
+                <div><p class="text-xs text-gray-500">Durată</p><p class="font-semibold">${c.duration ? c.duration+' minute' : '—'}</p></div>
+                <div><p class="text-xs text-gray-500">Rezultat</p>
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold ${rc}">${c.result||'—'}</span>
+                </div>
+            </div>
+            <div><p class="text-xs text-gray-500 mb-1">Rezumat / Notițe</p>
+                <p class="text-sm bg-gray-50 rounded-xl p-3">${c.summary||'—'}</p></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><p class="text-xs text-gray-500">Următoarea acțiune</p><p class="font-semibold">${c.nextAction||'—'}</p></div>
+                <div><p class="text-xs text-gray-500">Data urmărire</p><p class="font-semibold">${c.nextActionDate||'—'}</p></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><p class="text-xs text-gray-500">Status task asociat</p>
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold ${c.taskStatus==='Finalizat'?'bg-green-100 text-green-800':'bg-yellow-100 text-yellow-800'}">${c.taskStatus||'Programat'}</span>
+                </div>
+            </div>
+        </div>`;
+    el('modal-edit-btn').onclick = () => { closeModal(); editComm(id); };
+    el('modal-comm').classList.remove('hidden');
+};
+window.closeModal = () => el('modal-comm').classList.add('hidden');
+window.editComm   = id => window.location.href = `form.html?id=${id}`;
+window.deleteComm = async (id, name) => {
+    if (!confirm(`Ștergi comunicarea cu "${name}"?`)) return;
+    await deleteDoc(doc(db,'communications',id));
+    toast(`✅ Comunicare ștearsă.`);
+    allComms = allComms.filter(c => c.id !== id);
+    updateStats(allComms);
+    applyFilters();
+};
+
+// ── TOGGLE VIEW ───────────────────────────────────────────────────────────────
+window.setView = (view) => {
+    currentView = view;
+    ['list','calendar','tasks'].forEach(v => {
+        el(`view-${v}`).classList.toggle('hidden', v !== view);
+        const btn = el(`btn-view-${v}`);
+        btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${v===view?'bg-purple-600 text-white':'text-gray-600 hover:bg-gray-100'}`;
+    });
+    if (view === 'calendar') renderCalendar();
+    else if (view === 'tasks') renderTasks();
+    else renderTable();
+};
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+window.exportCSV = () => {
+    if (!filteredComms.length) { toast('Nu există date de exportat.', false); return; }
+    const h = ['Client','Agent','Tip','Data','Durată (min)','Rezultat','Rezumat','Urmărire','Data urmărire','Status task'];
+    const r = filteredComms.map(c => {
+        const dt = c.dateTime?.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+        return [c.clientName||'', c.agentName||'', c.type||'', dt.toLocaleString('ro-RO'),
+                c.duration||'', c.result||'', c.summary||'', c.nextAction||'', c.nextActionDate||'', c.taskStatus||''];
+    });
+    const csv = [h,...r].map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'}));
+    a.download = `comunicari_${new Date().toLocaleDateString('ro-RO').replace(/\./g,'-')}.csv`;
+    a.click();
+    toast('✅ Export realizat!');
+};
+
+el('filter-search').addEventListener('keydown', e => { if(e.key==='Enter') applyFilters(); });
+</script>
+</body>
+</html>
