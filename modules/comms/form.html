@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Comunicare Nouă</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-purple-700 to-purple-900 text-white shadow-xl">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
+        <button onclick="window.location.href='index.html'"
+                class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+        <div>
+            <h1 id="page-title" class="text-xl font-bold">💬 Comunicare Nouă</h1>
+            <p id="user-info" class="text-purple-200 text-xs"></p>
+        </div>
+    </div>
+</header>
+
+<div class="max-w-4xl mx-auto px-4 py-6">
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+
+        <!-- ── SECȚIUNEA 1: Date principale ── -->
+        <div class="mb-6">
+            <h2 class="text-base font-bold text-gray-700 border-b pb-2 mb-4">📋 Date Principale</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <!-- Client asociat -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Client asociat <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input id="client-search" type="text" placeholder="Caută client după nume..."
+                               autocomplete="off"
+                               class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                        <div id="client-dropdown" class="hidden absolute z-20 w-full bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <input id="client-id"   type="hidden">
+                    <input id="client-name" type="hidden">
+                    <p id="client-selected" class="text-xs text-green-600 mt-1 hidden">✅ Client selectat</p>
+                </div>
+
+                <!-- Tip comunicare -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tip comunicare <span class="text-red-500">*</span></label>
+                    <select id="comm-type" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                        <option value="">-- Selectează --</option>
+                        <option>Email</option>
+                        <option>Telefon</option>
+                        <option>Vizită</option>
+                        <option>WhatsApp</option>
+                        <option>Întâlnire</option>
+                        <option>Reclamație</option>
+                    </select>
+                </div>
+
+                <!-- Rezultat -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rezultat <span class="text-red-500">*</span></label>
+                    <select id="comm-result" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                        <option value="">-- Selectează --</option>
+                        <option>Pozitiv</option>
+                        <option>Neutru</option>
+                        <option>Negativ</option>
+                    </select>
+                </div>
+
+                <!-- Data și ora -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Data și ora <span class="text-red-500">*</span></label>
+                    <input id="comm-datetime" type="datetime-local"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                </div>
+
+                <!-- Durată -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Durată (minute)</label>
+                    <input id="comm-duration" type="number" min="0" placeholder="ex: 30"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                </div>
+
+                <!-- Agent (doar pentru manageri) -->
+                <div id="agent-field" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Agent <span class="text-red-500">*</span></label>
+                    <select id="comm-agent" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                        <option value="">-- Selectează agent --</option>
+                    </select>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── SECȚIUNEA 2: Conținut ── -->
+        <div class="mb-6">
+            <h2 class="text-base font-bold text-gray-700 border-b pb-2 mb-4">📝 Conținut</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rezumat / Notițe <span class="text-red-500">*</span></label>
+                    <textarea id="comm-summary" rows="4" placeholder="Descrie pe scurt discuția, ce s-a agreat, probleme semnalate..."
+                              class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm resize-none"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── SECȚIUNEA 3: Urmărire & Task ── -->
+        <div class="mb-6">
+            <h2 class="text-base font-bold text-gray-700 border-b pb-2 mb-4">🔁 Urmărire & Task Automat</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Următoarea acțiune planificată</label>
+                    <input id="comm-next-action" type="text" placeholder="ex: Trimite ofertă revizuită, Sună pentru confirmare..."
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Data urmăririi</label>
+                    <input id="comm-next-date" type="date"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm">
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status task asociat</label>
+                    <div class="flex gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="task-status" value="Programat" checked class="accent-purple-600">
+                            <span class="text-sm text-yellow-700 font-medium">⏰ Programat</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="task-status" value="Finalizat" class="accent-purple-600">
+                            <span class="text-sm text-green-700 font-medium">✅ Finalizat</span>
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Info box task automat -->
+            <div class="mt-4 bg-purple-50 border border-purple-200 rounded-xl p-4">
+                <p class="text-sm font-semibold text-purple-800 mb-1">ℹ️ Task automat generat după salvare:</p>
+                <ul class="text-sm text-purple-700 space-y-1 list-disc list-inside">
+                    <li>Se creează automat un task de follow-up pentru agent</li>
+                    <li>Dacă task-ul nu e finalizat până la data urmăririi → alertă pentru director</li>
+                    <li>Dacă rezultatul este <strong>Negativ</strong> → reminder automat în 5 zile</li>
+                    <li>Dacă clientul nu e contactat în 30 de zile → alertă automată</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ── BUTOANE ── -->
+        <div class="flex justify-end gap-3 pt-4 border-t">
+            <button onclick="window.location.href='index.html'"
+                    class="px-6 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm font-medium">
+                Anulează
+            </button>
+            <button id="btn-save" onclick="saveComm()"
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-2 rounded-lg text-sm font-medium shadow transition-colors">
+                💾 Salvează Comunicarea
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy,
+         doc, getDoc, addDoc, updateDoc, Timestamp }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99}, presedinte:{level:6}, director_general:{level:5},
+    director_regional:{level:4}, director_zonal:{level:3}, agent:{level:2}
+};
+
+let currentUser = null, currentUserData = null;
+let allClients  = [];
+let editId      = null; // dacă edităm o comunicare existentă
+
+const el    = id => document.getElementById(id);
+const toast = (msg, ok=true) => {
+    const t = el('toast');
+    t.textContent = msg;
+    t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden');
+    setTimeout(()=>t.classList.add('hidden'), 3500);
+};
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href = '../auth/index.html'; return; }
+    currentUser = user;
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+    currentUserData = snap.data();
+    el('user-info').textContent = currentUserData.name + ' · ' + currentUserData.role;
+
+    const level = ROLES[currentUserData.role]?.level || 0;
+
+    // Dacă e manager, arată câmpul agent
+    if (level > 2) {
+        el('agent-field').classList.remove('hidden');
+        await loadAgents(level);
+    }
+
+    // Setează data/ora implicită = acum
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    el('comm-datetime').value = now.toISOString().slice(0,16);
+
+    await loadClients();
+
+    // Verifică dacă suntem în modul editare
+    const params = new URLSearchParams(window.location.search);
+    editId = params.get('id');
+    if (editId) {
+        el('page-title').textContent = '✏️ Editează Comunicare';
+        await loadCommForEdit(editId);
+    }
+});
+
+// ── LOAD AGENȚI ───────────────────────────────────────────────────────────────
+async function loadAgents(level) {
+    const q = level >= 4
+        ? query(collection(db,'users'), where('role','==','agent'))
+        : query(collection(db,'users'), where('role','==','agent'), where('managerId','==',currentUser.uid));
+    const snap = await getDocs(q);
+    const sel = el('comm-agent');
+    snap.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id;
+        o.dataset.name = d.data().name || d.data().email;
+        o.dataset.managerId = d.data().managerId || '';
+        o.textContent = d.data().name || d.data().email;
+        sel.appendChild(o);
+    });
+}
+
+// ── LOAD CLIENȚI (pentru autocomplete) ───────────────────────────────────────
+async function loadClients() {
+    const level = ROLES[currentUserData.role]?.level || 0;
+    let q;
+    if (level >= 4) {
+        q = query(collection(db,'clients'), orderBy('companyName','asc'));
+    } else if (level === 3) {
+        q = query(collection(db,'clients'), where('directorZonalId','==',currentUser.uid), orderBy('companyName','asc'));
+    } else {
+        q = query(collection(db,'clients'), where('agentId','==',currentUser.uid), orderBy('companyName','asc'));
+    }
+    const snap = await getDocs(q);
+    allClients = [];
+    snap.forEach(d => allClients.push({id:d.id,...d.data()}));
+}
+
+// ── AUTOCOMPLETE CLIENT ───────────────────────────────────────────────────────
+el('client-search').addEventListener('input', function() {
+    const val = this.value.toLowerCase().trim();
+    const dd  = el('client-dropdown');
+    el('client-id').value   = '';
+    el('client-name').value = '';
+    el('client-selected').classList.add('hidden');
+
+    if (!val) { dd.classList.add('hidden'); return; }
+
+    const matches = allClients.filter(c => (c.companyName||'').toLowerCase().includes(val)).slice(0,8);
+    if (!matches.length) { dd.classList.add('hidden'); return; }
+
+    dd.innerHTML = matches.map(c => `
+        <div class="px-4 py-2 hover:bg-purple-50 cursor-pointer text-sm text-gray-800 border-b last:border-0"
+             data-id="${c.id}" data-name="${(c.companyName||'').replace(/"/g,'&quot;')}">
+            ${c.companyName||'—'}
+        </div>`).join('');
+    dd.classList.remove('hidden');
+
+    dd.querySelectorAll('div').forEach(item => {
+        item.addEventListener('click', () => {
+            el('client-id').value   = item.dataset.id;
+            el('client-name').value = item.dataset.name;
+            el('client-search').value = item.dataset.name;
+            el('client-selected').classList.remove('hidden');
+            dd.classList.add('hidden');
+        });
+    });
+});
+
+document.addEventListener('click', e => {
+    if (!el('client-search').contains(e.target)) el('client-dropdown').classList.add('hidden');
+});
+
+// ── LOAD PENTRU EDITARE ───────────────────────────────────────────────────────
+async function loadCommForEdit(id) {
+    const snap = await getDoc(doc(db,'communications',id));
+    if (!snap.exists()) { toast('Comunicarea nu a fost găsită.', false); return; }
+    const c = snap.data();
+
+    el('client-search').value = c.clientName || '';
+    el('client-id').value     = c.clientId   || '';
+    el('client-name').value   = c.clientName || '';
+    if (c.clientName) el('client-selected').classList.remove('hidden');
+
+    el('comm-type').value     = c.type     || '';
+    el('comm-result').value   = c.result   || '';
+    el('comm-duration').value = c.duration || '';
+    el('comm-summary').value  = c.summary  || '';
+    el('comm-next-action').value = c.nextAction     || '';
+    el('comm-next-date').value   = c.nextActionDate || '';
+
+    // Data
+    if (c.dateTime) {
+        const dt = c.dateTime.toDate ? c.dateTime.toDate() : new Date(c.dateTime);
+        dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+        el('comm-datetime').value = dt.toISOString().slice(0,16);
+    }
+
+    // Task status
+    const taskStatus = c.taskStatus || 'Programat';
+    document.querySelectorAll('input[name="task-status"]').forEach(r => {
+        r.checked = r.value === taskStatus;
+    });
+
+    // Agent (dacă e manager)
+    if (c.agentId && el('comm-agent')) el('comm-agent').value = c.agentId;
+}
+
+// ── SAVE ──────────────────────────────────────────────────────────────────────
+window.saveComm = async () => {
+    // Validare
+    const clientId   = el('client-id').value.trim();
+    const clientName = el('client-name').value.trim();
+    const type       = el('comm-type').value;
+    const result     = el('comm-result').value;
+    const dateTime   = el('comm-datetime').value;
+    const summary    = el('comm-summary').value.trim();
+
+    if (!clientId)  { toast('⚠️ Selectează un client!', false); return; }
+    if (!type)      { toast('⚠️ Selectează tipul comunicării!', false); return; }
+    if (!result)    { toast('⚠️ Selectează rezultatul!', false); return; }
+    if (!dateTime)  { toast('⚠️ Completează data și ora!', false); return; }
+    if (!summary)   { toast('⚠️ Completează rezumatul!', false); return; }
+
+    const btn = el('btn-save');
+    btn.disabled = true;
+    btn.textContent = '⏳ Se salvează...';
+
+    try {
+        const level = ROLES[currentUserData.role]?.level || 0;
+
+        // Determină agentul
+        let agentId, agentName, directorZonalId = null;
+        if (level > 2) {
+            const sel = el('comm-agent');
+            agentId   = sel.value;
+            const opt = sel.options[sel.selectedIndex];
+            agentName = opt?.dataset?.name || opt?.textContent || '';
+            directorZonalId = opt?.dataset?.managerId || null;
+            if (!agentId) { toast('⚠️ Selectează un agent!', false); btn.disabled=false; btn.textContent='💾 Salvează Comunicarea'; return; }
+        } else {
+            agentId   = currentUser.uid;
+            agentName = currentUserData.name;
+            directorZonalId = currentUserData.managerId || null;
+        }
+
+        const taskStatus = document.querySelector('input[name="task-status"]:checked')?.value || 'Programat';
+        const nextAction     = el('comm-next-action').value.trim();
+        const nextActionDate = el('comm-next-date').value;
+        const duration       = parseInt(el('comm-duration').value) || null;
+
+        const commData = {
+            clientId, clientName,
+            agentId, agentName,
+            directorZonalId,
+            type, result, summary,
+            duration,
+            nextAction, nextActionDate,
+            taskStatus,
+            dateTime: Timestamp.fromDate(new Date(dateTime)),
+            updatedAt: Timestamp.now()
+        };
+
+        let commId;
+        if (editId) {
+            await updateDoc(doc(db,'communications',editId), commData);
+            commId = editId;
+            toast('✅ Comunicare actualizată!');
+        } else {
+            commData.createdAt = Timestamp.now();
+            const ref = await addDoc(collection(db,'communications'), commData);
+            commId = ref.id;
+            toast('✅ Comunicare salvată!');
+
+            // ── Task automat ──────────────────────────────────────────────────
+            await createAutoTask({commId, clientId, clientName, agentId, agentName, directorZonalId,
+                                  type, result, nextAction, nextActionDate, taskStatus});
+
+            // ── Alerte automate ───────────────────────────────────────────────
+            await createAutoAlerts({commId, clientId, clientName, agentId, agentName,
+                                    directorZonalId, result, nextActionDate, type});
+        }
+
+        setTimeout(() => window.location.href = 'index.html', 1200);
+
+    } catch(e) {
+        toast('❌ Eroare: ' + e.message, false);
+        btn.disabled = false;
+        btn.textContent = '💾 Salvează Comunicarea';
+    }
+};
+
+// ── TASK AUTOMAT ──────────────────────────────────────────────────────────────
+async function createAutoTask({commId, clientId, clientName, agentId, agentName,
+                                directorZonalId, type, result, nextAction, nextActionDate, taskStatus}) {
+    // Data scadență: nextActionDate dacă există, altfel +3 zile
+    let dueDate = nextActionDate;
+    if (!dueDate) {
+        const d = new Date();
+        d.setDate(d.getDate() + 3);
+        dueDate = d.toISOString().split('T')[0];
+    }
+
+    const title = nextAction
+        ? `Follow-up: ${nextAction} — ${clientName}`
+        : `Follow-up după ${type} cu ${clientName}`;
+
+    await addDoc(collection(db,'comm_tasks'), {
+        commId, clientId, clientName,
+        agentId, agentName, directorZonalId,
+        title,
+        dueDate,
+        status: taskStatus,
+        autoGenerated: true,
+        createdAt: Timestamp.now()
+    });
+
+    // Dacă rezultat negativ → task suplimentar în 5 zile
+    if (result === 'Negativ') {
+        const d5 = new Date();
+        d5.setDate(d5.getDate() + 5);
+        await addDoc(collection(db,'comm_tasks'), {
+            commId, clientId, clientName,
+            agentId, agentName, directorZonalId,
+            title: `⚠️ Recontactare urgentă (rezultat negativ) — ${clientName}`,
+            dueDate: d5.toISOString().split('T')[0],
+            status: 'Programat',
+            autoGenerated: true,
+            isNegativeFollowUp: true,
+            createdAt: Timestamp.now()
+        });
+    }
+}
+
+// ── ALERTE AUTOMATE ───────────────────────────────────────────────────────────
+async function createAutoAlerts({commId, clientId, clientName, agentId, agentName,
+                                  directorZonalId, result, nextActionDate, type}) {
+
+    const alerts = [];
+    const now    = Timestamp.now();
+
+    // 1. Reminder agent: urmărire planificată
+    if (nextActionDate) {
+        alerts.push({
+            userId: agentId,
+            message: `🔔 Reminder: urmărire planificată cu "${clientName}" pe data de ${nextActionDate}`,
+            type: 'follow_up_reminder',
+            commId, clientId, read: false, createdAt: now,
+            triggerDate: nextActionDate
+        });
+    }
+
+    // 2. Alertă agent: rezultat negativ → recontactează în 5 zile
+    if (result === 'Negativ') {
+        const d5 = new Date();
+        d5.setDate(d5.getDate() + 5);
+        alerts.push({
+            userId: agentId,
+            message: `⚠️ Comunicare negativă cu "${clientName}". Recontactează până pe ${d5.toLocaleDateString('ro-RO')}`,
+            type: 'negative_result',
+            commId, clientId, read: false, createdAt: now,
+            triggerDate: d5.toISOString().split('T')[0]
+        });
+    }
+
+    // 3. Alertă director zonal (dacă există) pentru reclamații
+    if (type === 'Reclamație' && directorZonalId) {
+        alerts.push({
+            userId: directorZonalId,
+            message: `🚨 Reclamație înregistrată de ${agentName} pentru clientul "${clientName}"`,
+            type: 'complaint',
+            commId, clientId, read: false, createdAt: now
+        });
+    }
+
+    // 4. Alertă director dacă task neîndeplinit (programatică — logică aplicată la vizualizare)
+    // Înregistrăm o alertă viitoare pentru director
+    if (nextActionDate && directorZonalId) {
+        alerts.push({
+            userId: directorZonalId,
+            message: `📋 Verifică dacă ${agentName} a efectuat urmărirea cu "${clientName}" (scadență: ${nextActionDate})`,
+            type: 'manager_followup_check',
+            commId, clientId, agentId, read: false, createdAt: now,
+            triggerDate: nextActionDate,
+            isPending: true // va fi afișată doar după triggerDate
+        });
+    }
+
+    // Salvează toate alertele
+    await Promise.all(alerts.map(a => addDoc(collection(db,'alerts'), a)));
+}
+</script>
+</body>
+</html>
