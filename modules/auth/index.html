@@ -304,35 +304,44 @@
         };
 
         // ─── NAVIGARE MODULE (placeholder până construim modulele) ───────────────
-        window.handleModuleClick = (moduleId) => {
+ // ─── ÎNLOCUIEȘTE funcția handleModuleClick existentă cu aceasta ───────────────
+window.handleModuleClick = (moduleId) => {
     const routes = {
-        'mod-dashboard':     '../dashboard/index.html',
+        'mod-dashboard':     '../auth/index.html',          // rămâne pe dashboard
         'mod-clients':       '../clients/index.html',
         'mod-sales':         '../sales/index.html',
-        'mod-comms':         '../comms/index.html',
+        'mod-comms':         '../comms/index.html',         // ← modulul nou
         'mod-leads':         '../leads/index.html',
         'mod-opportunities': '../opportunities/index.html',
         'mod-reports':       '../reports/index.html',
-        'mod-reports-adv':   '../reports-adv/index.html',
+        'mod-reports-adv':   '../reports/advanced.html',
         'mod-users':         '../users/index.html',
     };
-    const built = ['mod-clients', 'mod-sales'];
-    if (built.includes(moduleId)) {
-        window.location.href = routes[moduleId];
-    } else {
-        const labels = {
-            'mod-dashboard':     'Dashboard',
-            'mod-sales':         'Vânzări',
-            'mod-comms':         'Comunicări',
-            'mod-leads':         'Leaduri',
-            'mod-opportunities': 'Oportunități',
-            'mod-reports':       'Rapoarte',
-            'mod-reports-adv':   'Rapoarte Avansate',
-            'mod-users':         'Utilizatori',
-        };
-        el('module-content-title').textContent = labels[moduleId] || moduleId;
-        el('module-content-msg').textContent   = `Modulul "${labels[moduleId]}" este în construcție. Reveniți curând!`;
+
+    const labels = {
+        'mod-dashboard':     'Dashboard',
+        'mod-clients':       'Clienți',
+        'mod-sales':         'Vânzări',
+        'mod-comms':         'Comunicări',
+        'mod-leads':         'Leaduri',
+        'mod-opportunities': 'Oportunități',
+        'mod-reports':       'Rapoarte',
+        'mod-reports-adv':   'Rapoarte Avansate',
+        'mod-users':         'Utilizatori',
+    };
+
+    const path = routes[moduleId];
+
+    // Module construite → navighează direct
+    const builtModules = ['mod-clients', 'mod-sales', 'mod-comms'];
+    if (path && builtModules.includes(moduleId)) {
+        window.location.href = path;
+        return;
     }
+
+    // Module încă în construcție → mesaj placeholder
+    el('module-content-title').textContent = labels[moduleId] || moduleId;
+    el('module-content-msg').textContent   = `Modulul "${labels[moduleId]}" este în construcție. Reveniți curând!`;
 };
     </script>
 </head>
