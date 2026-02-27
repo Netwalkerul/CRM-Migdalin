@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Oportunități</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-indigo-600 to-indigo-900 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='../auth/index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+            <div>
+                <h1 class="text-xl font-bold">💡 Modul Oportunități</h1>
+                <p id="user-info" class="text-indigo-200 text-xs"></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='report.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm font-medium">
+                📊 Rapoarte
+            </button>
+            <button onclick="window.location.href='form.html'"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow">
+                ➕ Oportunitate Nouă
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="max-w-7xl mx-auto px-4 py-4">
+
+    <!-- TOGGLE VIEW -->
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex bg-white rounded-xl shadow p-1 gap-1">
+            <button id="btn-view-table" onclick="setView('table')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-indigo-600 text-white">
+                📋 Tabel
+            </button>
+            <button id="btn-view-kanban" onclick="setView('kanban')"
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100">
+                🗂️ Pipeline
+            </button>
+        </div>
+        <button onclick="exportCSV()"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            📥 Export CSV
+        </button>
+    </div>
+
+    <!-- FILTRE -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div class="lg:col-span-2">
+                <input id="filter-search" type="text" placeholder="Caută după titlu, client, ID..."
+                       class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+            </div>
+            <select id="filter-stage" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                <option value="">Toate stadiile</option>
+                <option>Identificată</option>
+                <option>Propunere</option>
+                <option>Negociere</option>
+                <option>Câștigată</option>
+                <option>Pierdută</option>
+            </select>
+            <select id="filter-score" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                <option value="">Toate scorurile</option>
+                <option value="priority">🟢 Prioritară (61-100)</option>
+                <option value="medium">🟡 Medie (31-60)</option>
+                <option value="risk">🔴 Risc (0-30)</option>
+            </select>
+            <select id="filter-type" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                <option value="">Toate tipurile</option>
+                <option value="recurring">🔄 Recurring</option>
+                <option value="one-time">1️⃣ One-time</option>
+            </select>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+            <select id="filter-agent" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm agent-col hidden">
+                <option value="">Toți agenții</option>
+            </select>
+            <div class="flex items-center gap-2">
+                <input id="filter-stagnant" type="checkbox" class="accent-indigo-600 w-4 h-4">
+                <label for="filter-stagnant" class="text-sm text-gray-600">🟠 Doar stagnante (+14 zile)</label>
+            </div>
+            <div class="flex gap-2 md:col-start-4">
+                <button onclick="applyFilters()"
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    🔍 Filtrează
+                </button>
+                <button onclick="resetFilters()" class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATISTICI -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-400">
+            <p class="text-xs text-gray-500">Total</p>
+            <p id="stat-total" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500">În Negociere</p>
+            <p id="stat-neg" class="text-2xl font-bold text-yellow-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500">Câștigate</p>
+            <p id="stat-won" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-400">
+            <p class="text-xs text-gray-500">🟠 Stagnante</p>
+            <p id="stat-stagnant" class="text-2xl font-bold text-orange-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-400">
+            <p class="text-xs text-gray-500">Valoare Pipeline</p>
+            <p id="stat-pipeline" class="text-base font-bold text-blue-600 mt-1">0 RON</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-400">
+            <p class="text-xs text-gray-500">Valoare Ponderată</p>
+            <p id="stat-weighted" class="text-base font-bold text-purple-600 mt-1">0 RON</p>
+        </div>
+    </div>
+
+    <!-- VIEW: TABEL -->
+    <div id="view-table">
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ID / Titlu</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Stadiu</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Scor</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Valoare Est.</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Val. Ponderată</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Prob.</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Încheiere</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase agent-col hidden">Agent</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Acțiuni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="opp-tbody" class="divide-y divide-gray-100">
+                        <tr><td colspan="10" class="text-center py-16 text-gray-400">
+                            <div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: KANBAN -->
+    <div id="view-kanban" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4" id="kanban-board"></div>
+    </div>
+</div>
+
+<!-- MODAL detalii -->
+<div id="modal-opp" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div class="flex justify-between items-center px-6 py-4 border-b">
+            <h2 class="text-lg font-bold text-gray-800">💡 Detalii Oportunitate</h2>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+        <div id="modal-content" class="px-6 py-4"></div>
+        <div class="px-6 py-4 border-t flex justify-between items-center">
+            <div class="flex gap-2">
+                <button id="modal-convert-sale"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    🛒 Creează Ofertă Vânzări
+                </button>
+            </div>
+            <div class="flex gap-2">
+                <button id="modal-edit-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium">✏️ Editează</button>
+                <button onclick="closeModal()" class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">Închide</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy,
+         doc, getDoc, deleteDoc, updateDoc, addDoc, Timestamp }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99}, presedinte:{level:6}, director_general:{level:5},
+    director_regional:{level:4}, director_zonal:{level:3}, agent:{level:2}
+};
+
+const STAGE_COLORS = {
+    'Identificată': 'bg-blue-100 text-blue-800',
+    'Propunere':    'bg-yellow-100 text-yellow-800',
+    'Negociere':    'bg-purple-100 text-purple-800',
+    'Câștigată':    'bg-green-100 text-green-800',
+    'Pierdută':     'bg-red-100 text-red-800'
+};
+const STAGE_BORDER = {
+    'Identificată': 'border-blue-400 bg-blue-50',
+    'Propunere':    'border-yellow-400 bg-yellow-50',
+    'Negociere':    'border-purple-400 bg-purple-50',
+    'Câștigată':    'border-green-500 bg-green-50',
+    'Pierdută':     'border-red-400 bg-red-50'
+};
+const KANBAN_COLS = ['Identificată','Propunere','Negociere','Câștigată','Pierdută'];
+
+let currentUser = null, currentUserData = null;
+let allOpps = [], filteredOpps = [];
+let currentView = 'table';
+
+const el    = id => document.getElementById(id);
+const toast = (msg, ok=true) => {
+    const t = el('toast');
+    t.textContent = msg;
+    t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden');
+    setTimeout(()=>t.classList.add('hidden'), 3500);
+};
+
+// ── SCORING ───────────────────────────────────────────────────────────────────
+function calcScore(o) {
+    let s = 0;
+    const prob  = parseFloat(o.probability) || 0;
+    const val   = parseFloat(o.estimatedValue) || 0;
+    const margin= parseFloat(o.estimatedMargin) || 0;
+
+    if (prob > 70)       s += 25;
+    else if (prob >= 40) s += 15;
+    else if (prob > 0)   s += 5;
+
+    if (val > 50000)       s += 20;
+    else if (val > 10000)  s += 12;
+    else if (val > 0)      s += 5;
+
+    if (o.stage === 'Negociere') s += 20;
+    else if (o.stage === 'Propunere') s += 10;
+    else if (o.stage === 'Câștigată') s += 25;
+
+    if (o.closeDate) {
+        const days = (new Date(o.closeDate) - new Date()) / (1000*60*60*24);
+        if (days >= 0 && days <= 30) s += 15;
+        else if (days > 30 && days <= 60) s += 8;
+    }
+
+    if (margin > 30) s += 10;
+    else if (margin > 15) s += 5;
+
+    if (o.revenueType === 'recurring') s += 10;
+
+    return Math.min(s, 100);
+}
+
+function scoreBadge(score) {
+    if (score >= 61) return `<span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">🟢 ${score}</span>`;
+    if (score >= 31) return `<span class="px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">🟡 ${score}</span>`;
+    return `<span class="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">🔴 ${score}</span>`;
+}
+
+function isStagnant(o) {
+    if (['Câștigată','Pierdută'].includes(o.stage)) return false;
+    const ref = o.lastActivityAt?.toDate ? o.lastActivityAt.toDate()
+              : o.updatedAt?.toDate ? o.updatedAt.toDate()
+              : o.createdAt?.toDate ? o.createdAt.toDate() : null;
+    if (!ref) return false;
+    return (new Date() - ref) / (1000*60*60*24) > 14;
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href = '../auth/index.html'; return; }
+    currentUser = user;
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+    currentUserData = snap.data();
+    el('user-info').textContent = currentUserData.name + ' · ' + currentUserData.role;
+
+    const level = ROLES[currentUserData.role]?.level || 0;
+    if (level > 2) {
+        document.querySelectorAll('.agent-col').forEach(e => e.classList.remove('hidden'));
+        await loadAgentsFilter();
+    }
+    await loadOpps();
+});
+
+async function loadAgentsFilter() {
+    const level = ROLES[currentUserData.role]?.level || 0;
+    const q = level >= 4
+        ? query(collection(db,'users'), where('role','==','agent'))
+        : query(collection(db,'users'), where('role','==','agent'), where('managerId','==',currentUser.uid));
+    const snap = await getDocs(q);
+    const sel = el('filter-agent');
+    snap.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id; o.textContent = d.data().name || d.data().email;
+        sel.appendChild(o);
+    });
+}
+
+// ── LOAD ──────────────────────────────────────────────────────────────────────
+async function loadOpps() {
+    try {
+        const level = ROLES[currentUserData.role]?.level || 0;
+        let q;
+        if (level >= 4)       q = query(collection(db,'opportunities'), orderBy('createdAt','desc'));
+        else if (level === 3) q = query(collection(db,'opportunities'), where('directorZonalId','==',currentUser.uid), orderBy('createdAt','desc'));
+        else                  q = query(collection(db,'opportunities'), where('agentId','==',currentUser.uid), orderBy('createdAt','desc'));
+
+        const snap = await getDocs(q);
+        allOpps = [];
+        snap.forEach(d => {
+            const o = {id:d.id,...d.data()};
+            o.score = calcScore(o);
+            o.weightedValue = Math.round((parseFloat(o.estimatedValue)||0) * (parseFloat(o.probability)||0) / 100);
+            allOpps.push(o);
+        });
+        updateStats(allOpps);
+        applyFilters();
+    } catch(e) {
+        el('opp-tbody').innerHTML = `<tr><td colspan="10" class="text-center py-8 text-red-500">Eroare: ${e.message}</td></tr>`;
+    }
+}
+
+// ── STATISTICI ────────────────────────────────────────────────────────────────
+function updateStats(opps) {
+    const active = opps.filter(o=>!['Câștigată','Pierdută'].includes(o.stage));
+    el('stat-total').textContent    = opps.length;
+    el('stat-neg').textContent      = opps.filter(o=>o.stage==='Negociere').length;
+    el('stat-won').textContent      = opps.filter(o=>o.stage==='Câștigată').length;
+    el('stat-stagnant').textContent = opps.filter(o=>isStagnant(o)).length;
+    const pipeline = active.reduce((s,o)=>s+parseFloat(o.estimatedValue||0),0);
+    const weighted = active.reduce((s,o)=>s+(o.weightedValue||0),0);
+    el('stat-pipeline').textContent = pipeline.toLocaleString('ro-RO',{maximumFractionDigits:0})+' RON';
+    el('stat-weighted').textContent = weighted.toLocaleString('ro-RO',{maximumFractionDigits:0})+' RON';
+}
+
+// ── FILTRE ────────────────────────────────────────────────────────────────────
+window.applyFilters = () => {
+    const search   = el('filter-search').value.toLowerCase().trim();
+    const stage    = el('filter-stage').value;
+    const scoreF   = el('filter-score').value;
+    const type     = el('filter-type').value;
+    const agent    = el('filter-agent').value;
+    const stagnant = el('filter-stagnant').checked;
+
+    filteredOpps = allOpps.filter(o => {
+        const ms  = !search || (o.oppId||'').toLowerCase().includes(search) ||
+                    (o.title||'').toLowerCase().includes(search) ||
+                    (o.clientName||'').toLowerCase().includes(search);
+        const mst = !stage  || o.stage === stage;
+        const ma  = !agent  || o.agentId === agent;
+        const mt  = !type   || o.revenueType === type;
+        const mstg = !stagnant || isStagnant(o);
+        let msc = true;
+        if (scoreF==='priority') msc = o.score>=61;
+        if (scoreF==='medium')   msc = o.score>=31 && o.score<=60;
+        if (scoreF==='risk')     msc = o.score<=30;
+        return ms && mst && ma && mt && mstg && msc;
+    });
+    currentView === 'table' ? renderTable() : renderKanban();
+};
+
+window.resetFilters = () => {
+    ['filter-search','filter-stage','filter-score','filter-type','filter-agent'].forEach(id=>el(id).value='');
+    el('filter-stagnant').checked = false;
+    applyFilters();
+};
+
+// ── RENDER TABEL ──────────────────────────────────────────────────────────────
+function renderTable() {
+    const level = ROLES[currentUserData.role]?.level || 0;
+    if (!filteredOpps.length) {
+        el('opp-tbody').innerHTML = `<tr><td colspan="10" class="text-center py-16 text-gray-400">
+            <div class="text-5xl mb-3">💡</div><p>Nicio oportunitate găsită.</p></td></tr>`;
+        return;
+    }
+    el('opp-tbody').innerHTML = filteredOpps.map(o => {
+        const sc   = STAGE_COLORS[o.stage] || 'bg-gray-100 text-gray-700';
+        const stag = isStagnant(o);
+        const val  = parseFloat(o.estimatedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0});
+        const wval = (o.weightedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0});
+        const typeIcon = o.revenueType==='recurring'?'🔄':'1️⃣';
+        const closeDt = o.closeDate || '—';
+        const closeWarning = o.closeDate && new Date(o.closeDate) < new Date() && !['Câștigată','Pierdută'].includes(o.stage);
+        return `
+        <tr class="hover:bg-indigo-50 transition-colors cursor-pointer ${stag?'bg-orange-50':''}"
+            onclick="viewOpp('${o.id}')">
+            <td class="px-4 py-3">
+                <div class="font-mono text-xs text-indigo-700 font-semibold">${o.oppId||'—'}</div>
+                <div class="font-semibold text-gray-900 text-sm mt-0.5">${o.title||'—'}</div>
+                ${stag?'<span class="text-xs text-orange-600 font-semibold">🟠 Stagnant</span>':''}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-700">${o.clientName||'—'}</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${sc}">${o.stage||'—'}</span></td>
+            <td class="px-4 py-3">${scoreBadge(o.score)}</td>
+            <td class="px-4 py-3 text-sm font-semibold text-gray-800">${val} RON ${typeIcon}</td>
+            <td class="px-4 py-3 text-sm font-semibold text-purple-700">${wval} RON</td>
+            <td class="px-4 py-3 text-sm text-gray-600">${o.probability||0}%</td>
+            <td class="px-4 py-3 text-sm ${closeWarning?'text-red-600 font-semibold':'text-gray-600'}">${closeDt}${closeWarning?' ⚠️':''}</td>
+            <td class="px-4 py-3 text-sm text-gray-600 agent-col ${level<=2?'hidden':''}">${o.agentName||'—'}</td>
+            <td class="px-4 py-3 text-right" onclick="event.stopPropagation()">
+                <div class="flex justify-end gap-2">
+                    <button onclick="viewOpp('${o.id}')" class="text-indigo-600 hover:text-indigo-800 text-lg">👁️</button>
+                    <button onclick="editOpp('${o.id}')" class="text-yellow-600 hover:text-yellow-800 text-lg">✏️</button>
+                    <button onclick="deleteOpp('${o.id}','${(o.title||'').replace(/'/g,'')}')" class="text-red-600 hover:text-red-800 text-lg">🗑️</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ── RENDER KANBAN ─────────────────────────────────────────────────────────────
+function renderKanban() {
+    el('kanban-board').innerHTML = KANBAN_COLS.map(col => {
+        const items = filteredOpps.filter(o=>o.stage===col);
+        const totalVal = items.reduce((s,o)=>s+parseFloat(o.estimatedValue||0),0);
+        const totalW   = items.reduce((s,o)=>s+(o.weightedValue||0),0);
+        const [bdr, bg] = STAGE_BORDER[col].split(' ');
+        return `
+        <div class="flex flex-col">
+            <div class="rounded-t-xl px-3 py-3 border-t-4 ${bdr} ${bg} border-x border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-gray-800 text-sm">${col}</h3>
+                    <span class="bg-white text-gray-700 text-xs font-semibold px-2 py-1 rounded-full shadow">${items.length}</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">${totalVal.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</p>
+                <p class="text-xs text-purple-600 font-semibold">~${totalW.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON pond.</p>
+            </div>
+            <div class="flex-1 border-x border-b border-gray-200 rounded-b-xl p-2 space-y-2 min-h-48 ${bg}">
+                ${items.length ? items.map(o=>`
+                    <div onclick="viewOpp('${o.id}')"
+                         class="bg-white rounded-xl p-3 shadow hover:shadow-md cursor-pointer border ${isStagnant(o)?'border-orange-300':'border-gray-100'}">
+                        <div class="font-mono text-xs text-indigo-600 font-semibold">${o.oppId||'—'}</div>
+                        <div class="font-semibold text-gray-800 text-sm mt-0.5 leading-tight">${o.title||'—'}</div>
+                        <div class="text-xs text-gray-500 mt-1">${o.clientName||''}</div>
+                        <div class="flex justify-between items-center mt-2">
+                            ${scoreBadge(o.score)}
+                            <span class="text-xs font-semibold text-gray-700">${o.probability||0}%</span>
+                        </div>
+                        <div class="text-xs text-green-700 font-bold mt-1">${parseFloat(o.estimatedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</div>
+                        ${isStagnant(o)?'<div class="text-xs text-orange-600 font-semibold mt-1">🟠 Stagnant</div>':''}
+                    </div>`).join('')
+                : `<div class="text-center py-8 text-gray-400 text-sm">Fără oportunități</div>`}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── TOGGLE VIEW ───────────────────────────────────────────────────────────────
+window.setView = view => {
+    currentView = view;
+    el('view-table').classList.toggle('hidden',  view!=='table');
+    el('view-kanban').classList.toggle('hidden', view!=='kanban');
+    el('btn-view-table').className  = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${view==='table' ?'bg-indigo-600 text-white':'text-gray-600 hover:bg-gray-100'}`;
+    el('btn-view-kanban').className = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${view==='kanban'?'bg-indigo-600 text-white':'text-gray-600 hover:bg-gray-100'}`;
+    view==='table' ? renderTable() : renderKanban();
+};
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+window.viewOpp = id => {
+    const o = allOpps.find(x=>x.id===id);
+    if (!o) return;
+    const sc   = STAGE_COLORS[o.stage]||'bg-gray-100 text-gray-700';
+    const stag = isStagnant(o);
+    const typeLabel = o.revenueType==='recurring'?'🔄 Recurring':'1️⃣ One-time';
+    el('modal-content').innerHTML = `
+        <div class="space-y-4">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <span class="font-mono text-sm text-indigo-700 font-bold bg-indigo-100 px-3 py-1 rounded-full">${o.oppId||'—'}</span>
+                <div class="flex gap-2">${scoreBadge(o.score)} ${stag?'<span class="px-2 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800">🟠 Stagnant</span>':''}</div>
+            </div>
+            <h3 class="text-lg font-bold text-gray-800">${o.title||'—'}</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div><p class="text-xs text-gray-500">Client</p><p class="font-semibold">${o.clientName||'—'}</p></div>
+                <div><p class="text-xs text-gray-500">Agent</p><p class="font-semibold">${o.agentName||'—'}</p></div>
+                <div><p class="text-xs text-gray-500">Stadiu</p><span class="px-2 py-1 rounded-full text-xs font-semibold ${sc}">${o.stage||'—'}</span></div>
+                <div><p class="text-xs text-gray-500">Probabilitate</p><p class="font-semibold">${o.probability||0}%</p></div>
+                <div><p class="text-xs text-gray-500">Valoare estimată</p><p class="font-semibold text-gray-800">${parseFloat(o.estimatedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</p></div>
+                <div><p class="text-xs text-gray-500">Valoare ponderată</p><p class="font-semibold text-purple-700">${(o.weightedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</p></div>
+                <div><p class="text-xs text-gray-500">Cost estimat</p><p class="font-semibold">${o.estimatedCost ? parseFloat(o.estimatedCost).toLocaleString('ro-RO',{maximumFractionDigits:0})+' RON' : '—'}</p></div>
+                <div><p class="text-xs text-gray-500">Marjă estimată</p><p class="font-semibold text-green-700">${o.estimatedMargin||0}%</p></div>
+                <div><p class="text-xs text-gray-500">Tip venit</p><p class="font-semibold">${typeLabel}</p></div>
+                <div><p class="text-xs text-gray-500">Data încheiere</p><p class="font-semibold">${o.closeDate||'—'}</p></div>
+                <div><p class="text-xs text-gray-500">Sursa</p><p class="font-semibold">${o.source||'—'}</p></div>
+                <div><p class="text-xs text-gray-500">Concurență</p><p class="font-semibold">${o.competition||'—'}</p></div>
+            </div>
+            ${o.products?`<div><p class="text-xs text-gray-500 mb-1">Produse / Servicii</p><p class="text-sm bg-gray-50 rounded-xl p-3">${o.products}</p></div>`:''}
+            ${o.notes?`<div><p class="text-xs text-gray-500 mb-1">Notițe</p><p class="text-sm bg-gray-50 rounded-xl p-3">${o.notes}</p></div>`:''}
+            ${o.leadId?`<div class="bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-800">🎯 Generat din lead: <strong>${o.leadCode||o.leadId}</strong></div>`:''}
+        </div>`;
+    el('modal-edit-btn').onclick    = () => { closeModal(); editOpp(id); };
+    el('modal-convert-sale').onclick = () => { closeModal(); convertToSale(o); };
+    if (['Câștigată','Pierdută'].includes(o.stage)) {
+        el('modal-convert-sale').disabled = true;
+        el('modal-convert-sale').className = 'bg-gray-300 text-gray-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed';
+    }
+    el('modal-opp').classList.remove('hidden');
+};
+window.closeModal = () => el('modal-opp').classList.add('hidden');
+window.editOpp    = id => window.location.href = `form.html?id=${id}`;
+window.deleteOpp  = async (id, title) => {
+    if (!confirm(`Ștergi oportunitatea "${title}"?`)) return;
+    await deleteDoc(doc(db,'opportunities',id));
+    toast('✅ Oportunitate ștearsă.');
+    allOpps = allOpps.filter(o=>o.id!==id);
+    updateStats(allOpps);
+    applyFilters();
+};
+
+// ── CONVERSIE → VÂNZĂRI ───────────────────────────────────────────────────────
+window.convertToSale = async (o) => {
+    if (!confirm(`Creezi o ofertă de vânzare pentru "${o.title}"?`)) return;
+    try {
+        // Marchează oportunitatea ca Câștigată
+        await updateDoc(doc(db,'opportunities',o.id), {
+            stage: 'Câștigată',
+            updatedAt: Timestamp.now(),
+            lastActivityAt: Timestamp.now()
+        });
+        // Navighează la form.html din vânzări cu parametri pre-completați
+        const params = new URLSearchParams({
+            fromOpp:    o.id,
+            clientId:   o.clientId   || '',
+            clientName: o.clientName || '',
+            product:    o.products   || '',
+            value:      o.estimatedValue || ''
+        });
+        window.location.href = `../sales/form.html?${params.toString()}`;
+    } catch(e) {
+        toast('❌ Eroare: '+e.message, false);
+    }
+};
+
+// ── EXPORT CSV ────────────────────────────────────────────────────────────────
+window.exportCSV = () => {
+    if (!filteredOpps.length) { toast('Nu există date de exportat.',false); return; }
+    const h = ['ID','Titlu','Client','Stadiu','Scor','Valoare Est.','Val. Ponderată','Probabilitate','Cost Est.','Marjă %','Tip Venit','Încheiere','Sursă','Concurență','Agent','Stagnant'];
+    const r = filteredOpps.map(o => [
+        o.oppId||'', o.title||'', o.clientName||'', o.stage||'', o.score||0,
+        o.estimatedValue||'', o.weightedValue||'', o.probability||'',
+        o.estimatedCost||'', o.estimatedMargin||'', o.revenueType||'',
+        o.closeDate||'', o.source||'', o.competition||'', o.agentName||'',
+        isStagnant(o)?'Da':'Nu'
+    ]);
+    const csv = [h,...r].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+    a.download = `oportunitati_${new Date().toLocaleDateString('ro-RO').replace(/\./g,'-')}.csv`;
+    a.click();
+    toast('✅ Export realizat!');
+};
+
+el('filter-search').addEventListener('keydown', e => { if(e.key==='Enter') applyFilters(); });
+</script>
+</body>
+</html>
