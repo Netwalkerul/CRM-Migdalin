@@ -333,7 +333,7 @@ window.handleModuleClick = (moduleId) => {
     const path = routes[moduleId];
 
     // Module construite → navighează direct
-    const builtModules = ['mod-clients', 'mod-sales', 'mod-comms'];
+    const builtModules = ['mod-clients', 'mod-sales', 'mod-comms', 'mod-leads'];
     if (path && builtModules.includes(moduleId)) {
         window.location.href = path;
         return;
