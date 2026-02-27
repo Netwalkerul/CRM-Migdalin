@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Lead Nou</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-orange-600 to-orange-800 text-white shadow-xl">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
+        <button onclick="window.location.href='index.html'"
+                class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+        <div>
+            <h1 id="page-title" class="text-xl font-bold">🎯 Lead Nou</h1>
+            <p id="user-info" class="text-orange-200 text-xs"></p>
+        </div>
+    </div>
+</header>
+
+<div class="max-w-4xl mx-auto px-4 py-6 space-y-4">
+
+    <!-- SCOR LIVE -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 flex items-center justify-between">
+        <div>
+            <p class="text-xs text-gray-500 mb-1">Scor Lead (calculat automat)</p>
+            <div class="flex items-center gap-3">
+                <div class="w-40 h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="score-bar" class="h-3 rounded-full transition-all duration-500 bg-red-400" style="width:0%"></div>
+                </div>
+                <span id="score-label" class="text-sm font-bold text-gray-700">🔴 Rece — 0 / 100</span>
+            </div>
+        </div>
+        <div id="score-tips" class="text-xs text-gray-400 text-right max-w-xs"></div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-lg p-6">
+
+        <!-- ── SECȚIUNEA 1: Identificare ── -->
+        <div class="mb-6">
+            <h2 class="text-base font-bold text-gray-700 border-b pb-2 mb-4">🏢 Identificare</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        ID Lead <span class="text-xs text-gray-400">(generat automat)</span>
+                    </label>
+                    <input id="lead-id-display" type="text" readonly
+                           class="w-full px-4 py-2 bg-orange-50 border-2 border-orange-200 rounded-lg text-sm font-mono text-orange-700 font-semibold cursor-not-allowed">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Agent <span class="text-red-500">*</span></label>
+                    <select id="lead-agent" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                        <option value="">-- Selectează --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Companie <span class="text-red-500">*</span></label>
+                    <input id="lead-company" type="text" placeholder="ex: SC Exemplu SRL"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Persoană contact</label>
+                    <input id="lead-contact" type="text" placeholder="ex: Ion Popescu"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                    <input id="lead-phone" type="tel" placeholder="ex: 0740123456"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input id="lead-email" type="email" placeholder="ex: contact@exemplu.ro"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── SECȚIUNEA 2: Origine ── -->
+        <div class="mb-6">
+            <h2 class="text-base font-bold text-gray-700 border-b pb-2 mb-4">📣 Origine & Campanie</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Sursă <span class="text-red-500">*</span></label>
+                    <select id="lead-source" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                        <option value="">-- Selectează --</option>
+                        <option>Facebook</option>
+                        <option>Recomandare</option>
+                        <option>Site</option>
+                        <option>Târg</option>
+                        <option>Altele</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Campanie asociată</label>
+                    <input id="lead-campaign" type="text" placeholder="ex: Campanie Primăvară 2025"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Produs / Serviciu de interes</label>
+                    <input id="lead-product" type="text" placeholder="ex: Instalație fotovoltaică 10kW"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── SECȚIUNEA 3: Calificare ── -->
+        <div class="mb-6">
+            <h2 class="text-base font-bold text-gray-700 border-b pb-2 mb-4">📊 Calificare & Valoare</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
+                    <select id="lead-status" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                        <option value="">-- Selectează --</option>
+                        <option>Nou</option>
+                        <option>Contactat</option>
+                        <option>Calificat</option>
+                        <option>Pierdut</option>
+                        <option>Convertit</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Orizont de achiziție</label>
+                    <select id="lead-horizon" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                        <option value="">-- Selectează --</option>
+                        <option>Imediat</option>
+                        <option>3 luni</option>
+                        <option>6 luni</option>
+                        <option>9 luni</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Buget estimat (RON)</label>
+                    <input id="lead-budget" type="number" min="0" placeholder="ex: 15000"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Valoare potențială estimată (RON)</label>
+                    <input id="lead-value" type="number" min="0" placeholder="ex: 20000"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notițe</label>
+                    <textarea id="lead-notes" rows="3" placeholder="Detalii relevante despre lead..."
+                              class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm resize-none"></textarea>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── SECȚIUNEA 4: Task automat ── -->
+        <div class="mb-6">
+            <h2 class="text-base font-bold text-gray-700 border-b pb-2 mb-4">⚡ Task Automat</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Acțiune urmărire</label>
+                    <input id="lead-task-title" type="text" placeholder="ex: Sună pentru prezentare ofertă"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Dată scadență task</label>
+                    <input id="lead-task-date" type="date"
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                </div>
+            </div>
+            <div class="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-800">
+                ℹ️ La salvare se creează automat un task de follow-up. Dacă nu completezi câmpurile de mai sus, scadența implicită va fi <strong>+2 zile</strong>.
+            </div>
+        </div>
+
+        <!-- ── BUTOANE ── -->
+        <div class="flex justify-end gap-3 pt-4 border-t">
+            <button onclick="window.location.href='index.html'"
+                    class="px-6 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm font-medium">
+                Anulează
+            </button>
+            <button id="btn-save" onclick="saveLead()"
+                    class="bg-orange-600 hover:bg-orange-700 text-white px-8 py-2 rounded-lg text-sm font-medium shadow transition-colors">
+                💾 Salvează Lead
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy,
+         doc, getDoc, addDoc, updateDoc, Timestamp }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99}, presedinte:{level:6}, director_general:{level:5},
+    director_regional:{level:4}, director_zonal:{level:3}, agent:{level:2}
+};
+
+let currentUser = null, currentUserData = null;
+let editId = null;
+let generatedLeadId = '';
+
+const el    = id => document.getElementById(id);
+const toast = (msg, ok=true) => {
+    const t = el('toast');
+    t.textContent = msg;
+    t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden');
+    setTimeout(()=>t.classList.add('hidden'), 3500);
+};
+
+// ── LEAD SCORING ──────────────────────────────────────────────────────────────
+function calcScore() {
+    let s = 0;
+    const budget  = parseFloat(el('lead-budget').value)  || 0;
+    const horizon = el('lead-horizon').value;
+    const source  = el('lead-source').value;
+    const status  = el('lead-status').value;
+    const phone   = el('lead-phone').value.trim();
+    const email   = el('lead-email').value.trim();
+
+    if (budget > 50000)      s += 20;
+    else if (budget > 10000) s += 15;
+    else if (budget > 5000)  s += 10;
+    else if (budget > 0)     s += 5;
+
+    if (horizon === 'Imediat')  s += 30;
+    else if (horizon === '3 luni') s += 20;
+    else if (horizon === '6 luni') s += 10;
+    else if (horizon === '9 luni') s += 5;
+
+    if (source === 'Recomandare') s += 20;
+    else if (source === 'Târg')   s += 15;
+    else if (source === 'Site')   s += 10;
+    else if (source === 'Facebook') s += 8;
+
+    if (status === 'Calificat')  s += 20;
+    else if (status === 'Contactat') s += 10;
+
+    if (phone && email) s += 10;
+    return Math.min(s, 100);
+}
+
+function updateScoreUI() {
+    const score = calcScore();
+    const bar   = el('score-bar');
+    const label = el('score-label');
+    const tips  = el('score-tips');
+    bar.style.width = score + '%';
+
+    let emoji, text, color;
+    if (score >= 61) { emoji='🟢'; text='Fierbinte'; color='bg-green-500'; }
+    else if (score >= 31) { emoji='🟡'; text='Cald'; color='bg-yellow-400'; }
+    else { emoji='🔴'; text='Rece'; color='bg-red-400'; }
+
+    bar.className = `h-3 rounded-full transition-all duration-500 ${color}`;
+    label.textContent = `${emoji} ${text} — ${score} / 100`;
+
+    // Sugestii de îmbunătățire scor
+    const sugg = [];
+    if (!el('lead-phone').value || !el('lead-email').value) sugg.push('+10 dacă adaugi telefon & email');
+    if (!el('lead-source').value || el('lead-source').value === 'Altele') sugg.push('+15-20 cu sursă Recomandare/Târg');
+    if (!el('lead-horizon').value || el('lead-horizon').value === '9 luni') sugg.push('+20-30 cu orizont Imediat/3 luni');
+    if (el('lead-status').value !== 'Calificat') sugg.push('+20 la status Calificat');
+    if (parseFloat(el('lead-budget').value)||0 < 10000) sugg.push('+15 dacă bugetul > 10.000 RON');
+    tips.innerHTML = sugg.length
+        ? '<span class="font-semibold">Îmbunătățește scorul:</span><br>' + sugg.slice(0,3).join('<br>')
+        : '<span class="text-green-600 font-semibold">✅ Scor excelent!</span>';
+}
+
+// ── GENERARE ID LEAD ──────────────────────────────────────────────────────────
+async function generateLeadId() {
+    const snap = await getDocs(collection(db,'leads'));
+    const count = snap.size + 1;
+    const year  = new Date().getFullYear();
+    generatedLeadId = `LD-${year}-${String(count).padStart(4,'0')}`;
+    el('lead-id-display').value = generatedLeadId;
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href = '../auth/index.html'; return; }
+    currentUser = user;
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+    currentUserData = snap.data();
+    el('user-info').textContent = currentUserData.name + ' · ' + currentUserData.role;
+
+    const level = ROLES[currentUserData.role]?.level || 0;
+    await loadAgents(level);
+
+    // Dată implicită task: +2 zile
+    const d2 = new Date();
+    d2.setDate(d2.getDate() + 2);
+    el('lead-task-date').value = d2.toISOString().split('T')[0];
+
+    // Verifică mod editare
+    const params = new URLSearchParams(window.location.search);
+    editId = params.get('id');
+    if (editId) {
+        el('page-title').textContent = '✏️ Editează Lead';
+        await loadLeadForEdit(editId);
+    } else {
+        await generateLeadId();
+    }
+
+    // Scor live la orice modificare
+    ['lead-budget','lead-horizon','lead-source','lead-status','lead-phone','lead-email']
+        .forEach(id => el(id).addEventListener('input', updateScoreUI));
+    ['lead-horizon','lead-source','lead-status']
+        .forEach(id => el(id).addEventListener('change', updateScoreUI));
+    updateScoreUI();
+});
+
+// ── LOAD AGENȚI ───────────────────────────────────────────────────────────────
+async function loadAgents(level) {
+    const agentSel = el('lead-agent');
+
+    // Agentul curent poate fi doar el însuși dacă e agent
+    if (level <= 2) {
+        const o = document.createElement('option');
+        o.value = currentUser.uid;
+        o.dataset.name = currentUserData.name;
+        o.dataset.managerId = currentUserData.managerId || '';
+        o.textContent = currentUserData.name;
+        o.selected = true;
+        agentSel.appendChild(o);
+        agentSel.disabled = true;
+        agentSel.className += ' bg-gray-100 cursor-not-allowed';
+        return;
+    }
+
+    const q = level >= 4
+        ? query(collection(db,'users'), where('role','==','agent'))
+        : query(collection(db,'users'), where('role','==','agent'), where('managerId','==',currentUser.uid));
+    const snap = await getDocs(q);
+    snap.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id;
+        o.dataset.name = d.data().name || d.data().email;
+        o.dataset.managerId = d.data().managerId || '';
+        o.textContent = d.data().name || d.data().email;
+        agentSel.appendChild(o);
+    });
+}
+
+// ── LOAD PENTRU EDITARE ───────────────────────────────────────────────────────
+async function loadLeadForEdit(id) {
+    const snap = await getDoc(doc(db,'leads',id));
+    if (!snap.exists()) { toast('Leadul nu a fost găsit.', false); return; }
+    const l = snap.data();
+
+    el('lead-id-display').value = l.leadId || '';
+    generatedLeadId = l.leadId || '';
+    el('lead-company').value  = l.companyName  || '';
+    el('lead-contact').value  = l.contactName  || '';
+    el('lead-phone').value    = l.phone        || '';
+    el('lead-email').value    = l.email        || '';
+    el('lead-source').value   = l.source       || '';
+    el('lead-campaign').value = l.campaign     || '';
+    el('lead-product').value  = l.product      || '';
+    el('lead-status').value   = l.status       || '';
+    el('lead-horizon').value  = l.horizon      || '';
+    el('lead-budget').value   = l.budget       || '';
+    el('lead-value').value    = l.estimatedValue || '';
+    el('lead-notes').value    = l.notes        || '';
+    if (l.agentId) el('lead-agent').value = l.agentId;
+    updateScoreUI();
+}
+
+// ── SAVE ──────────────────────────────────────────────────────────────────────
+window.saveLead = async () => {
+    const companyName = el('lead-company').value.trim();
+    const source      = el('lead-source').value;
+    const status      = el('lead-status').value;
+    const agentSel    = el('lead-agent');
+    const agentId     = agentSel.value;
+
+    if (!companyName) { toast('⚠️ Completează numele companiei!', false); return; }
+    if (!source)      { toast('⚠️ Selectează sursa!', false); return; }
+    if (!status)      { toast('⚠️ Selectează statusul!', false); return; }
+    if (!agentId)     { toast('⚠️ Selectează agentul!', false); return; }
+
+    const btn = el('btn-save');
+    btn.disabled = true;
+    btn.textContent = '⏳ Se salvează...';
+
+    try {
+        const opt = agentSel.options[agentSel.selectedIndex];
+        const agentName      = opt?.dataset?.name || opt?.textContent || '';
+        const directorZonalId = opt?.dataset?.managerId || null;
+        const score = calcScore();
+
+        const leadData = {
+            leadId:         generatedLeadId,
+            companyName,
+            contactName:    el('lead-contact').value.trim(),
+            phone:          el('lead-phone').value.trim(),
+            email:          el('lead-email').value.trim(),
+            source,
+            campaign:       el('lead-campaign').value.trim(),
+            product:        el('lead-product').value.trim(),
+            status,
+            horizon:        el('lead-horizon').value,
+            budget:         parseFloat(el('lead-budget').value) || null,
+            estimatedValue: parseFloat(el('lead-value').value)  || null,
+            notes:          el('lead-notes').value.trim(),
+            agentId,
+            agentName,
+            directorZonalId,
+            score,
+            updatedAt: Timestamp.now()
+        };
+
+        if (editId) {
+            await updateDoc(doc(db,'leads',editId), leadData);
+            toast('✅ Lead actualizat!');
+        } else {
+            leadData.createdAt = Timestamp.now();
+            const ref = await addDoc(collection(db,'leads'), leadData);
+            // Task automat
+            await createAutoTask(ref.id, leadData);
+            toast('✅ Lead salvat!');
+        }
+
+        setTimeout(() => window.location.href = 'index.html', 1200);
+    } catch(e) {
+        toast('❌ Eroare: ' + e.message, false);
+        btn.disabled = false;
+        btn.textContent = '💾 Salvează Lead';
+    }
+};
+
+// ── TASK AUTOMAT ──────────────────────────────────────────────────────────────
+async function createAutoTask(leadDocId, lead) {
+    const taskTitle = el('lead-task-title').value.trim()
+        || `Contactează lead: ${lead.companyName}`;
+    const taskDate = el('lead-task-date').value
+        || (() => { const d=new Date(); d.setDate(d.getDate()+2); return d.toISOString().split('T')[0]; })();
+
+    await addDoc(collection(db,'lead_tasks'), {
+        leadId:          leadDocId,
+        leadCode:        lead.leadId,
+        clientName:      lead.companyName,
+        agentId:         lead.agentId,
+        agentName:       lead.agentName,
+        directorZonalId: lead.directorZonalId,
+        title:           taskTitle,
+        dueDate:         taskDate,
+        status:          'Programat',
+        autoGenerated:   true,
+        createdAt:       Timestamp.now()
+    });
+
+    // Alertă pentru agent
+    await addDoc(collection(db,'alerts'), {
+        userId:    lead.agentId,
+        message:   `🎯 Lead nou "${lead.companyName}" (${lead.leadId}) — ${taskTitle} până pe ${taskDate}`,
+        type:      'new_lead_task',
+        leadId:    leadDocId,
+        read:      false,
+        createdAt: Timestamp.now()
+    });
+
+    // Alertă pentru director dacă lead fierbinte
+    if (lead.score >= 61 && lead.directorZonalId) {
+        await addDoc(collection(db,'alerts'), {
+            userId:    lead.directorZonalId,
+            message:   `🔥 Lead FIERBINTE (scor ${lead.score}) — "${lead.companyName}" atribuit lui ${lead.agentName}`,
+            type:      'hot_lead',
+            leadId:    leadDocId,
+            read:      false,
+            createdAt: Timestamp.now()
+        });
+    }
+}
+</script>
+</body>
+</html>
