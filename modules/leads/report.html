@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Rapoarte Leaduri</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-orange-600 to-orange-800 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+            <div>
+                <h1 class="text-xl font-bold">📊 Rapoarte & Task-uri Leaduri</h1>
+                <p id="user-info" class="text-orange-200 text-xs"></p>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- TAB NAV -->
+<div class="max-w-7xl mx-auto px-4 pt-4">
+    <div class="flex bg-white rounded-xl shadow p-1 gap-1 w-fit mb-6">
+        <button id="tab-btn-tasks" onclick="setTab('tasks')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-orange-600 text-white">
+            ✅ Task-uri
+        </button>
+        <button id="tab-btn-report" onclick="setTab('report')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 manager-only hidden">
+            📊 Raport Activități
+        </button>
+        <button id="tab-btn-funnel" onclick="setTab('funnel')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 manager-only hidden">
+            🔻 Funnel Conversie
+        </button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: TASK-URI LEADURI -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="tab-tasks" class="max-w-7xl mx-auto px-4 pb-8">
+
+    <!-- Filtre -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input id="task-search" type="text" placeholder="Caută după lead, titlu..."
+                   class="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+            <select id="task-filter-status" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                <option value="">Toate statusurile</option>
+                <option value="Programat">Programat</option>
+                <option value="Finalizat">Finalizat</option>
+                <option value="Depășit">Depășit</option>
+            </select>
+            <select id="task-filter-agent" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm manager-only hidden">
+                <option value="">Toți agenții</option>
+            </select>
+            <div class="flex gap-2">
+                <button onclick="applyTaskFilters()"
+                        class="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    🔍 Filtrează
+                </button>
+                <button onclick="resetTaskFilters()" class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistici task-uri -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500">Programate</p>
+            <p id="ts-scheduled" class="text-2xl font-bold text-yellow-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500">Finalizate</p>
+            <p id="ts-done" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+            <p class="text-xs text-gray-500">Depășite</p>
+            <p id="ts-overdue" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-400">
+            <p class="text-xs text-gray-500">Total</p>
+            <p id="ts-total" class="text-2xl font-bold text-orange-600 mt-1">0</p>
+        </div>
+    </div>
+
+    <!-- Tabel task-uri -->
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Task</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Lead</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Scadență</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase manager-only hidden">Agent</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody id="tasks-tbody" class="divide-y divide-gray-100">
+                    <tr><td colspan="6" class="text-center py-16 text-gray-400">
+                        <div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: RAPORT ACTIVITĂȚI -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="tab-report" class="hidden max-w-7xl mx-auto px-4 pb-8">
+
+    <!-- Filtre raport -->
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">De la data</label>
+                <input id="rep-date-from" type="date" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">Până la data</label>
+                <input id="rep-date-to" type="date" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">Agent</label>
+                <select id="rep-agent" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 text-sm">
+                    <option value="">Toți agenții</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button onclick="generateReport()"
+                        class="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    📊 Generează
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI-uri raport -->
+    <div id="rep-kpis" class="hidden grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-400">
+            <p class="text-xs text-gray-500">Total Leaduri</p>
+            <p id="rep-total" class="text-2xl font-bold text-orange-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500">Convertite</p>
+            <p id="rep-converted" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-400">
+            <p class="text-xs text-gray-500">Pierdute</p>
+            <p id="rep-lost" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-400">
+            <p class="text-xs text-gray-500">Rată conversie</p>
+            <p id="rep-rate" class="text-2xl font-bold text-green-600 mt-1">0%</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-400">
+            <p class="text-xs text-gray-500">Valoare potențială</p>
+            <p id="rep-value" class="text-base font-bold text-indigo-600 mt-1">0 RON</p>
+        </div>
+    </div>
+
+    <div id="rep-tables" class="hidden space-y-6">
+        <!-- Per agent -->
+        <div>
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-gray-700">👤 Activitate per Agent</h3>
+                <button onclick="exportReport('agent')"
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">📥 Export</button>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Total</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Noi</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Calificați</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Convertiți</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Pierduți</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">🟢 Fierbinți</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Conversie %</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Valoare Est.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rep-agent-tbody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per sursă -->
+        <div>
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-gray-700">📣 Activitate per Sursă</h3>
+                <button onclick="exportReport('source')"
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">📥 Export</button>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Sursă</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Total</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Convertiți</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Pierduți</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Conversie %</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Scor mediu</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Valoare Est.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rep-source-tbody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per campanie -->
+        <div>
+            <h3 class="font-bold text-gray-700 mb-3">🎯 Activitate per Campanie</h3>
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Campanie</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Total Leaduri</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Convertiți</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Conversie %</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Valoare Potențială</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rep-campaign-tbody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="rep-empty" class="text-center py-16 text-gray-400">
+        <div class="text-5xl mb-3">📊</div>
+        <p>Selectează perioada și apasă "Generează"</p>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: FUNNEL CONVERSIE -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div id="tab-funnel" class="hidden max-w-7xl mx-auto px-4 pb-8">
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Funnel vizual -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <h3 class="font-bold text-gray-700 mb-6 text-center">🔻 Funnel Conversie Leaduri</h3>
+            <div id="funnel-chart" class="space-y-2"></div>
+        </div>
+
+        <!-- Top leaduri fierbinți -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <h3 class="font-bold text-gray-700 mb-4">🔥 Top Leaduri Fierbinți (Neconvertite)</h3>
+            <div id="hot-leads-list" class="space-y-3">
+                <p class="text-center text-gray-400 py-8 text-sm">Se încarcă...</p>
+            </div>
+        </div>
+
+        <!-- Distribuție pe orizont -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <h3 class="font-bold text-gray-700 mb-4">📅 Distribuție după Orizont de Achiziție</h3>
+            <div id="horizon-chart" class="space-y-3"></div>
+        </div>
+
+        <!-- Scor mediu per agent -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <h3 class="font-bold text-gray-700 mb-4">⭐ Scor Mediu per Agent</h3>
+            <div id="score-chart" class="space-y-3">
+                <p class="text-center text-gray-400 py-8 text-sm">Se încarcă...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy,
+         doc, getDoc, updateDoc, Timestamp }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99}, presedinte:{level:6}, director_general:{level:5},
+    director_regional:{level:4}, director_zonal:{level:3}, agent:{level:2}
+};
+const SOURCE_ICONS = {
+    'Facebook':'📘','Recomandare':'🤝','Site':'🌐','Târg':'🏪','Altele':'📌'
+};
+const STATUS_COLORS = {
+    'Nou':'bg-blue-100 text-blue-800','Contactat':'bg-yellow-100 text-yellow-800',
+    'Calificat':'bg-purple-100 text-purple-800','Pierdut':'bg-red-100 text-red-800',
+    'Convertit':'bg-green-100 text-green-800'
+};
+
+let currentUser = null, currentUserData = null;
+let allTasks = [], filteredTasks = [];
+let allLeads = [], allAgents = [];
+let reportLeads = [];
+
+const el    = id => document.getElementById(id);
+const toast = (msg, ok=true) => {
+    const t = el('toast');
+    t.textContent = msg;
+    t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden');
+    setTimeout(()=>t.classList.add('hidden'), 3500);
+};
+
+function calcScore(l) {
+    let s = 0;
+    const budget = parseFloat(l.budget)||0;
+    if (budget>50000) s+=20; else if(budget>10000) s+=15; else if(budget>5000) s+=10; else if(budget>0) s+=5;
+    if (l.horizon==='Imediat') s+=30; else if(l.horizon==='3 luni') s+=20; else if(l.horizon==='6 luni') s+=10; else if(l.horizon==='9 luni') s+=5;
+    if (l.source==='Recomandare') s+=20; else if(l.source==='Târg') s+=15; else if(l.source==='Site') s+=10; else if(l.source==='Facebook') s+=8;
+    if (l.status==='Calificat') s+=20; else if(l.status==='Contactat') s+=10;
+    if (l.email&&l.phone) s+=10;
+    return Math.min(s,100);
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href = '../auth/index.html'; return; }
+    currentUser = user;
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (!snap.exists()) { window.location.href = '../auth/index.html'; return; }
+    currentUserData = snap.data();
+    el('user-info').textContent = currentUserData.name + ' · ' + currentUserData.role;
+
+    const level = ROLES[currentUserData.role]?.level || 0;
+    if (level > 2) {
+        document.querySelectorAll('.manager-only').forEach(e => e.classList.remove('hidden'));
+        await loadAgents(level);
+    }
+
+    // Perioadă implicită: luna curentă
+    const now = new Date();
+    const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
+    el('rep-date-from').value = `${y}-${m}-01`;
+    el('rep-date-to').value   = new Date(y, now.getMonth()+1, 0).toISOString().split('T')[0];
+
+    await loadAllLeads();
+    await loadTasks();
+    renderFunnel();
+    renderHotLeads();
+    renderHorizonChart();
+    renderScoreChart();
+});
+
+// ── LOAD AGENȚI ───────────────────────────────────────────────────────────────
+async function loadAgents(level) {
+    const q = level >= 4
+        ? query(collection(db,'users'), where('role','==','agent'))
+        : query(collection(db,'users'), where('role','==','agent'), where('managerId','==',currentUser.uid));
+    const snap = await getDocs(q);
+    allAgents = [];
+    snap.forEach(d => allAgents.push({id:d.id,...d.data()}));
+    [el('task-filter-agent'), el('rep-agent')].forEach(sel => {
+        if (!sel) return;
+        allAgents.forEach(a => {
+            const o = document.createElement('option');
+            o.value = a.id; o.textContent = a.name||a.email;
+            sel.appendChild(o);
+        });
+    });
+}
+
+// ── LOAD LEADURI ──────────────────────────────────────────────────────────────
+async function loadAllLeads() {
+    const level = ROLES[currentUserData.role]?.level || 0;
+    let q;
+    if (level >= 4)       q = query(collection(db,'leads'), orderBy('createdAt','desc'));
+    else if (level === 3) q = query(collection(db,'leads'), where('directorZonalId','==',currentUser.uid), orderBy('createdAt','desc'));
+    else                  q = query(collection(db,'leads'), where('agentId','==',currentUser.uid), orderBy('createdAt','desc'));
+    const snap = await getDocs(q);
+    allLeads = [];
+    snap.forEach(d => { const l={id:d.id,...d.data()}; l.score=l.score||calcScore(l); allLeads.push(l); });
+}
+
+// ── LOAD TASK-URI ─────────────────────────────────────────────────────────────
+async function loadTasks() {
+    const level = ROLES[currentUserData.role]?.level || 0;
+    let q;
+    if (level >= 4)       q = query(collection(db,'lead_tasks'), orderBy('dueDate','asc'));
+    else if (level === 3) q = query(collection(db,'lead_tasks'), where('directorZonalId','==',currentUser.uid), orderBy('dueDate','asc'));
+    else                  q = query(collection(db,'lead_tasks'), where('agentId','==',currentUser.uid), orderBy('dueDate','asc'));
+    const snap = await getDocs(q);
+    allTasks = [];
+    snap.forEach(d => allTasks.push({id:d.id,...d.data()}));
+    applyTaskFilters();
+}
+
+// ── FILTRE TASK-URI ───────────────────────────────────────────────────────────
+window.applyTaskFilters = () => {
+    const search = el('task-search').value.toLowerCase().trim();
+    const status = el('task-filter-status').value;
+    const agent  = el('task-filter-agent')?.value || '';
+    const now    = new Date();
+
+    filteredTasks = allTasks.filter(t => {
+        const due  = new Date(t.dueDate);
+        const comp = t.status === 'Finalizat';
+        const over = !comp && due < now;
+        const eff  = comp ? 'Finalizat' : over ? 'Depășit' : 'Programat';
+        const ms   = !search || (t.title||'').toLowerCase().includes(search) || (t.clientName||'').toLowerCase().includes(search);
+        const mst  = !status || eff === status;
+        const ma   = !agent  || t.agentId === agent;
+        return ms && mst && ma;
+    });
+    renderTasksTable(now);
+};
+
+window.resetTaskFilters = () => {
+    el('task-search').value='';
+    el('task-filter-status').value='';
+    if(el('task-filter-agent')) el('task-filter-agent').value='';
+    applyTaskFilters();
+};
+
+function renderTasksTable(now) {
+    if (!now) now = new Date();
+    const level = ROLES[currentUserData.role]?.level || 0;
+    const sched = allTasks.filter(t=>t.status!=='Finalizat'&&new Date(t.dueDate)>=now).length;
+    const done  = allTasks.filter(t=>t.status==='Finalizat').length;
+    const over  = allTasks.filter(t=>t.status!=='Finalizat'&&new Date(t.dueDate)<now).length;
+    el('ts-scheduled').textContent = sched;
+    el('ts-done').textContent      = done;
+    el('ts-overdue').textContent   = over;
+    el('ts-total').textContent     = allTasks.length;
+
+    if (!filteredTasks.length) {
+        el('tasks-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-16 text-gray-400">
+            <div class="text-5xl mb-3">✅</div><p>Niciun task găsit.</p></td></tr>`;
+        return;
+    }
+    el('tasks-tbody').innerHTML = filteredTasks.map(t => {
+        const due  = new Date(t.dueDate);
+        const comp = t.status==='Finalizat';
+        const isOver = !comp && due < now;
+        const eff  = comp?'Finalizat':isOver?'Depășit':'Programat';
+        const cls  = comp?'bg-green-100 text-green-800':isOver?'bg-red-100 text-red-800':'bg-yellow-100 text-yellow-800';
+        const dueCls = isOver&&!comp?'text-red-600 font-semibold':'text-gray-600';
+        return `
+        <tr class="hover:bg-orange-50 transition-colors">
+            <td class="px-4 py-3 text-sm font-medium text-gray-800">${t.title||'—'}</td>
+            <td class="px-4 py-3">
+                <div class="text-sm font-semibold text-gray-800">${t.clientName||'—'}</div>
+                <div class="text-xs text-orange-600 font-mono">${t.leadCode||''}</div>
+            </td>
+            <td class="px-4 py-3 text-sm ${dueCls}">${t.dueDate||'—'}${isOver&&!comp?' ⚠️':''}</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${cls}">${eff}</span></td>
+            <td class="px-4 py-3 text-sm text-gray-600 manager-only ${level<=2?'hidden':''}">${t.agentName||'—'}</td>
+            <td class="px-4 py-3 text-right">
+                ${!comp ? `<button onclick="completeTask('${t.id}')"
+                    class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg">✅ Finalizat</button>`
+                : '<span class="text-xs text-green-600">✅</span>'}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+window.completeTask = async (id) => {
+    await updateDoc(doc(db,'lead_tasks',id), {status:'Finalizat', completedAt:Timestamp.now()});
+    toast('✅ Task marcat ca finalizat!');
+    allTasks = allTasks.map(t => t.id===id?{...t,status:'Finalizat'}:t);
+    applyTaskFilters();
+};
+
+// ── RAPORT ────────────────────────────────────────────────────────────────────
+window.generateReport = async () => {
+    const dateFrom = el('rep-date-from').value;
+    const dateTo   = el('rep-date-to').value;
+    const agentF   = el('rep-agent').value;
+    if (!dateFrom||!dateTo) { toast('⚠️ Selectează perioada!',false); return; }
+
+    const from = new Date(dateFrom), to = new Date(dateTo+'T23:59:59');
+    reportLeads = allLeads.filter(l => {
+        const dt = l.createdAt?.toDate?l.createdAt.toDate():new Date(l.createdAt);
+        return dt>=from && dt<=to && (!agentF||l.agentId===agentF);
+    });
+
+    if (!reportLeads.length) {
+        el('rep-kpis').classList.add('hidden');
+        el('rep-tables').classList.add('hidden');
+        el('rep-empty').classList.remove('hidden');
+        toast('Niciun lead în perioada selectată.',false);
+        return;
+    }
+
+    el('rep-empty').classList.add('hidden');
+    el('rep-kpis').classList.remove('hidden');
+    el('rep-tables').classList.remove('hidden');
+
+    // KPI-uri
+    const converted = reportLeads.filter(l=>l.status==='Convertit').length;
+    const lost      = reportLeads.filter(l=>l.status==='Pierdut').length;
+    const rate      = reportLeads.length ? Math.round(converted/reportLeads.length*100) : 0;
+    const totalVal  = reportLeads.reduce((s,l)=>s+parseFloat(l.estimatedValue||0),0);
+    el('rep-total').textContent     = reportLeads.length;
+    el('rep-converted').textContent = converted;
+    el('rep-lost').textContent      = lost;
+    el('rep-rate').textContent      = rate+'%';
+    el('rep-value').textContent     = totalVal.toLocaleString('ro-RO',{maximumFractionDigits:0})+' RON';
+
+    // Per agent
+    const agentMap = {};
+    reportLeads.forEach(l => {
+        if (!agentMap[l.agentId]) agentMap[l.agentId]={name:l.agentName||'—',total:0,new:0,qualified:0,converted:0,lost:0,hot:0,value:0};
+        const a=agentMap[l.agentId];
+        a.total++; a.value+=parseFloat(l.estimatedValue||0);
+        if(l.status==='Nou')       a.new++;
+        if(l.status==='Calificat') a.qualified++;
+        if(l.status==='Convertit') a.converted++;
+        if(l.status==='Pierdut')   a.lost++;
+        if((l.score||0)>=61)       a.hot++;
+    });
+    el('rep-agent-tbody').innerHTML = Object.values(agentMap).map(a=>{
+        const rate=a.total?Math.round(a.converted/a.total*100):0;
+        const rc=rate>=50?'text-green-600':rate>=25?'text-yellow-600':'text-red-600';
+        return `<tr class="hover:bg-orange-50">
+            <td class="px-4 py-3 font-semibold text-gray-800 text-sm">${a.name}</td>
+            <td class="px-4 py-3 text-center font-bold text-orange-700">${a.total}</td>
+            <td class="px-4 py-3 text-center text-blue-600">${a.new}</td>
+            <td class="px-4 py-3 text-center text-purple-600">${a.qualified}</td>
+            <td class="px-4 py-3 text-center text-green-600 font-semibold">${a.converted}</td>
+            <td class="px-4 py-3 text-center text-red-500">${a.lost}</td>
+            <td class="px-4 py-3 text-center text-green-700 font-bold">${a.hot}</td>
+            <td class="px-4 py-3 text-center font-semibold ${rc}">${rate}%</td>
+            <td class="px-4 py-3 text-center text-indigo-700 font-semibold">${a.value.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="9" class="text-center py-8 text-gray-400">Nicio dată</td></tr>';
+
+    // Per sursă
+    const sources = ['Facebook','Recomandare','Site','Târg','Altele'];
+    el('rep-source-tbody').innerHTML = sources.map(src=>{
+        const items=reportLeads.filter(l=>l.source===src);
+        if(!items.length) return '';
+        const conv=items.filter(l=>l.status==='Convertit').length;
+        const lost=items.filter(l=>l.status==='Pierdut').length;
+        const rate=items.length?Math.round(conv/items.length*100):0;
+        const avgScore=Math.round(items.reduce((s,l)=>s+(l.score||0),0)/items.length);
+        const val=items.reduce((s,l)=>s+parseFloat(l.estimatedValue||0),0);
+        const rc=rate>=50?'text-green-600':rate>=25?'text-yellow-600':'text-red-600';
+        return `<tr class="hover:bg-orange-50">
+            <td class="px-4 py-3 font-semibold text-gray-800">${SOURCE_ICONS[src]||'📌'} ${src}</td>
+            <td class="px-4 py-3 text-center font-bold text-orange-700">${items.length}</td>
+            <td class="px-4 py-3 text-center text-green-600 font-semibold">${conv}</td>
+            <td class="px-4 py-3 text-center text-red-500">${lost}</td>
+            <td class="px-4 py-3 text-center font-semibold ${rc}">${rate}%</td>
+            <td class="px-4 py-3 text-center">${avgScore>=61?'🟢':avgScore>=31?'🟡':'🔴'} ${avgScore}</td>
+            <td class="px-4 py-3 text-center text-indigo-700 font-semibold">${val.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="7" class="text-center py-8 text-gray-400">Nicio dată</td></tr>';
+
+    // Per campanie
+    const campMap = {};
+    reportLeads.forEach(l=>{
+        const k=l.campaign||'(fără campanie)';
+        if(!campMap[k]) campMap[k]={total:0,converted:0,value:0};
+        campMap[k].total++; campMap[k].value+=parseFloat(l.estimatedValue||0);
+        if(l.status==='Convertit') campMap[k].converted++;
+    });
+    el('rep-campaign-tbody').innerHTML = Object.entries(campMap).map(([name,d])=>{
+        const rate=d.total?Math.round(d.converted/d.total*100):0;
+        const rc=rate>=50?'text-green-600':rate>=25?'text-yellow-600':'text-red-600';
+        return `<tr class="hover:bg-orange-50">
+            <td class="px-4 py-3 font-semibold text-gray-800">${name}</td>
+            <td class="px-4 py-3 text-center font-bold text-orange-700">${d.total}</td>
+            <td class="px-4 py-3 text-center text-green-600 font-semibold">${d.converted}</td>
+            <td class="px-4 py-3 text-center font-semibold ${rc}">${rate}%</td>
+            <td class="px-4 py-3 text-center text-indigo-700 font-semibold">${d.value.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="5" class="text-center py-8 text-gray-400">Nicio dată</td></tr>';
+
+    toast('✅ Raport generat!');
+};
+
+// ── FUNNEL ────────────────────────────────────────────────────────────────────
+function renderFunnel() {
+    const stages = ['Nou','Contactat','Calificat','Convertit','Pierdut'];
+    const colors = {
+        'Nou':'bg-blue-400','Contactat':'bg-yellow-400',
+        'Calificat':'bg-purple-400','Convertit':'bg-green-500','Pierdut':'bg-red-400'
+    };
+    const total = allLeads.length || 1;
+    el('funnel-chart').innerHTML = stages.map((s,i)=>{
+        const count = allLeads.filter(l=>l.status===s).length;
+        const pct   = Math.round(count/total*100);
+        const width = Math.max(pct, 5);
+        const margin = i*3;
+        return `
+        <div class="flex items-center gap-3">
+            <div class="w-20 text-right text-xs font-semibold text-gray-600 flex-shrink-0">${s}</div>
+            <div class="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
+                <div class="${colors[s]} h-8 rounded-full flex items-center justify-end pr-3 transition-all duration-700"
+                     style="width:${width}%; margin-left:${margin}%">
+                    <span class="text-white text-xs font-bold">${count}</span>
+                </div>
+            </div>
+            <div class="w-10 text-xs text-gray-500 flex-shrink-0">${pct}%</div>
+        </div>`;
+    }).join('');
+}
+
+function renderHotLeads() {
+    const hot = allLeads
+        .filter(l=>l.score>=61 && l.status!=='Convertit' && l.status!=='Pierdut')
+        .sort((a,b)=>(b.score||0)-(a.score||0))
+        .slice(0,5);
+    el('hot-leads-list').innerHTML = hot.length ? hot.map(l=>`
+        <div class="flex items-center justify-between p-3 bg-orange-50 rounded-xl border border-orange-100">
+            <div>
+                <p class="font-semibold text-gray-800 text-sm">${l.companyName||'—'}</p>
+                <p class="text-xs text-gray-500">${l.agentName||''} · ${l.horizon||'—'}</p>
+            </div>
+            <div class="text-right">
+                <span class="text-sm font-bold bg-green-100 text-green-800 px-2 py-1 rounded-full">🟢 ${l.score}</span>
+                <p class="text-xs text-indigo-600 font-semibold mt-1">${parseFloat(l.estimatedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</p>
+            </div>
+        </div>`) .join('')
+    : '<p class="text-center text-gray-400 py-8 text-sm">Niciun lead fierbinte activ</p>';
+}
+
+function renderHorizonChart() {
+    const horizons = ['Imediat','3 luni','6 luni','9 luni'];
+    const colors   = {'Imediat':'bg-green-500','3 luni':'bg-yellow-400','6 luni':'bg-orange-400','9 luni':'bg-red-400'};
+    const total    = allLeads.length || 1;
+    el('horizon-chart').innerHTML = horizons.map(h=>{
+        const count = allLeads.filter(l=>l.horizon===h).length;
+        const pct   = Math.round(count/total*100);
+        return `
+        <div>
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                <span class="font-medium">${h}</span>
+                <span>${count} leaduri (${pct}%)</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-4">
+                <div class="${colors[h]} h-4 rounded-full transition-all duration-700" style="width:${Math.max(pct,2)}%"></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderScoreChart() {
+    const agentMap = {};
+    allLeads.forEach(l => {
+        if (!agentMap[l.agentId]) agentMap[l.agentId]={name:l.agentName||'—',scores:[]};
+        agentMap[l.agentId].scores.push(l.score||0);
+    });
+    const agents = Object.values(agentMap)
+        .map(a=>({name:a.name, avg:Math.round(a.scores.reduce((s,x)=>s+x,0)/a.scores.length)}))
+        .sort((a,b)=>b.avg-a.avg);
+
+    el('score-chart').innerHTML = agents.length ? agents.map(a=>{
+        const emoji = a.avg>=61?'🟢':a.avg>=31?'🟡':'🔴';
+        const barColor = a.avg>=61?'bg-green-500':a.avg>=31?'bg-yellow-400':'bg-red-400';
+        return `
+        <div>
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                <span class="font-medium">${a.name}</span>
+                <span>${emoji} ${a.avg} / 100</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-4">
+                <div class="${barColor} h-4 rounded-full transition-all duration-700" style="width:${a.avg}%"></div>
+            </div>
+        </div>`;
+    }).join('')
+    : '<p class="text-center text-gray-400 py-4 text-sm">Nicio dată disponibilă</p>';
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+window.exportReport = (type) => {
+    let rows, filename;
+    if (type==='agent') {
+        rows = [['Agent','Total','Noi','Calificați','Convertiți','Pierduți','Fierbinți','Conversie %','Valoare Est.']];
+        el('rep-agent-tbody').querySelectorAll('tr').forEach(tr=>
+            rows.push([...tr.querySelectorAll('td')].map(td=>td.textContent.trim())));
+        filename = 'raport_leaduri_agenti';
+    } else {
+        rows = [['Sursă','Total','Convertiți','Pierduți','Conversie %','Scor mediu','Valoare Est.']];
+        el('rep-source-tbody').querySelectorAll('tr').forEach(tr=>
+            rows.push([...tr.querySelectorAll('td')].map(td=>td.textContent.trim())));
+        filename = 'raport_leaduri_surse';
+    }
+    const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+    a.download = `${filename}_${new Date().toLocaleDateString('ro-RO').replace(/\./g,'-')}.csv`;
+    a.click();
+    toast('✅ Export realizat!');
+};
+
+// ── TAB SWITCH ────────────────────────────────────────────────────────────────
+window.setTab = (tab) => {
+    ['tasks','report','funnel'].forEach(t => {
+        el(`tab-${t}`)?.classList.toggle('hidden', t!==tab);
+        const btn = el(`tab-btn-${t}`);
+        if (btn) btn.className = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${t===tab?'bg-orange-600 text-white':'text-gray-600 hover:bg-gray-100'}`;
+    });
+};
+</script>
+</body>
+</html>
