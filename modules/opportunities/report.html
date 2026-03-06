@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Rapoarte Oportunități</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-indigo-600 to-indigo-900 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+            <div>
+                <h1 class="text-xl font-bold">📊 Rapoarte & Task-uri Oportunități</h1>
+                <p id="user-info" class="text-indigo-200 text-xs"></p>
+            </div>
+        </div>
+        <button onclick="runStagnantCheck()"
+                class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">
+            🔄 Verifică Stagnare
+        </button>
+    </div>
+</header>
+
+<!-- TAB NAV -->
+<div class="max-w-7xl mx-auto px-4 pt-4">
+    <div class="flex bg-white rounded-xl shadow p-1 gap-1 w-fit mb-6 flex-wrap">
+        <button id="tab-btn-tasks" onclick="setTab('tasks')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-indigo-600 text-white">
+            ✅ Task-uri
+        </button>
+        <button id="tab-btn-stagnant" onclick="setTab('stagnant')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100">
+            🟠 Stagnante
+            <span id="stagnant-badge" class="hidden ml-1 bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5"></span>
+        </button>
+        <button id="tab-btn-report" onclick="setTab('report')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 manager-only hidden">
+            📊 Raport
+        </button>
+        <button id="tab-btn-funnel" onclick="setTab('funnel')"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-600 hover:bg-gray-100 manager-only hidden">
+            🔻 Funnel
+        </button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- TAB: TASK-URI -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-tasks" class="max-w-7xl mx-auto px-4 pb-8">
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input id="task-search" type="text" placeholder="Caută după titlu, oportunitate..."
+                   class="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+            <select id="task-filter-status" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                <option value="">Toate statusurile</option>
+                <option value="Programat">Programat</option>
+                <option value="Finalizat">Finalizat</option>
+                <option value="Depășit">Depășit</option>
+            </select>
+            <select id="task-filter-agent" class="px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm manager-only hidden">
+                <option value="">Toți agenții</option>
+            </select>
+            <div class="flex gap-2">
+                <button onclick="applyTaskFilters()"
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    🔍 Filtrează
+                </button>
+                <button onclick="resetTaskFilters()" class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500">Programate</p>
+            <p id="ts-scheduled" class="text-2xl font-bold text-yellow-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500">Finalizate</p>
+            <p id="ts-done" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+            <p class="text-xs text-gray-500">Depășite</p>
+            <p id="ts-overdue" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-400">
+            <p class="text-xs text-gray-500">Total</p>
+            <p id="ts-total" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Task</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Oportunitate</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Scadență</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase manager-only hidden">Agent</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody id="tasks-tbody" class="divide-y divide-gray-100">
+                    <tr><td colspan="6" class="text-center py-16 text-gray-400">
+                        <div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- TAB: STAGNANTE -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-stagnant" class="hidden max-w-7xl mx-auto px-4 pb-8">
+    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 text-sm text-orange-800">
+        🟠 Oportunități fără activitate înregistrată în ultimele <strong>14 zile</strong>.
+        Aceste oportunități necesită atenție imediată pentru a nu fi pierdute.
+    </div>
+    <div id="stagnant-list" class="space-y-3">
+        <div class="text-center py-16 text-gray-400">
+            <div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- TAB: RAPORT -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-report" class="hidden max-w-7xl mx-auto px-4 pb-8">
+
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">De la data</label>
+                <input id="rep-date-from" type="date" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">Până la data</label>
+                <input id="rep-date-to" type="date" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 mb-1 block">Agent</label>
+                <select id="rep-agent" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                    <option value="">Toți agenții</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button onclick="generateReport()"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    📊 Generează
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI-uri -->
+    <div id="rep-kpis" class="hidden grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-400">
+            <p class="text-xs text-gray-500">Total</p>
+            <p id="rep-total" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs text-gray-500">Câștigate</p>
+            <p id="rep-won" class="text-2xl font-bold text-green-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-400">
+            <p class="text-xs text-gray-500">Pierdute</p>
+            <p id="rep-lost" class="text-2xl font-bold text-red-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+            <p class="text-xs text-gray-500">Rată câștig</p>
+            <p id="rep-winrate" class="text-2xl font-bold text-yellow-600 mt-1">0%</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-400">
+            <p class="text-xs text-gray-500">Val. Ponderată</p>
+            <p id="rep-weighted" class="text-base font-bold text-purple-600 mt-1">0 RON</p>
+        </div>
+    </div>
+
+    <div id="rep-tables" class="hidden space-y-6">
+
+        <!-- Per agent -->
+        <div>
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-gray-700">👤 Per Agent</h3>
+                <button onclick="exportReport('agent')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">📥 Export</button>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Total</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Câștigate</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Pierdute</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Negociere</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">🟢 Prioritare</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Rată câștig</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Val. Est.</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Val. Ponderată</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rep-agent-tbody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per stadiu -->
+        <div>
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-gray-700">📋 Per Stadiu</h3>
+                <button onclick="exportReport('stage')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">📥 Export</button>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Stadiu</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Total</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Val. Estimată</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Val. Ponderată</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Prob. Medie</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Scor Mediu</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Marjă Medie</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rep-stage-tbody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per tip venit -->
+        <div>
+            <h3 class="font-bold text-gray-700 mb-3">🔄 Recurring vs One-time</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div id="rev-recurring" class="bg-white rounded-2xl shadow-lg p-5 border-l-4 border-indigo-500">
+                    <h4 class="font-bold text-indigo-700 mb-3">🔄 Recurring</h4>
+                    <div id="rev-recurring-content" class="space-y-1 text-sm text-gray-700"></div>
+                </div>
+                <div id="rev-onetime" class="bg-white rounded-2xl shadow-lg p-5 border-l-4 border-gray-400">
+                    <h4 class="font-bold text-gray-700 mb-3">1️⃣ One-time</h4>
+                    <div id="rev-onetime-content" class="space-y-1 text-sm text-gray-700"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="rep-empty" class="text-center py-16 text-gray-400">
+        <div class="text-5xl mb-3">📊</div>
+        <p>Selectează perioada și apasă "Generează"</p>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- TAB: FUNNEL -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="tab-funnel" class="hidden max-w-7xl mx-auto px-4 pb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Funnel stadii -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <h3 class="font-bold text-gray-700 mb-6 text-center">🔻 Funnel pe Stadii</h3>
+            <div id="funnel-chart" class="space-y-3"></div>
+        </div>
+
+        <!-- Top oportunități prioritare -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <h3 class="font-bold text-gray-700 mb-4">🟢 Top Oportunități Prioritare</h3>
+            <div id="top-priority-list" class="space-y-3"></div>
+        </div>
+
+        <!-- Distribuție probabilitate -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <h3 class="font-bold text-gray-700 mb-4">📊 Distribuție după Probabilitate</h3>
+            <div id="prob-chart" class="space-y-3"></div>
+        </div>
+
+        <!-- Valoare ponderată per agent -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+            <h3 class="font-bold text-gray-700 mb-4">💰 Valoare Ponderată per Agent</h3>
+            <div id="weighted-chart" class="space-y-3"></div>
+        </div>
+
+        <!-- Oportunități cu scadență apropiată -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 md:col-span-2">
+            <h3 class="font-bold text-gray-700 mb-4">⏰ Scadențe în Următoarele 30 Zile</h3>
+            <div id="deadline-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy,
+         doc, getDoc, updateDoc, addDoc, Timestamp }
+                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99}, presedinte:{level:6}, director_general:{level:5},
+    director_regional:{level:4}, director_zonal:{level:3}, agent:{level:2}
+};
+const STAGES = ['Identificată','Propunere','Negociere','Câștigată','Pierdută'];
+const STAGE_COLORS = {
+    'Identificată':'bg-blue-100 text-blue-800','Propunere':'bg-yellow-100 text-yellow-800',
+    'Negociere':'bg-purple-100 text-purple-800','Câștigată':'bg-green-100 text-green-800',
+    'Pierdută':'bg-red-100 text-red-800'
+};
+
+let currentUser=null, currentUserData=null;
+let allOpps=[], allTasks=[], filteredTasks=[], allAgents=[];
+
+const el    = id => document.getElementById(id);
+const toast = (msg,ok=true) => {
+    const t=el('toast'); t.textContent=msg;
+    t.className=`fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),3500);
+};
+
+function calcScore(o) {
+    let s=0;
+    const prob=parseFloat(o.probability)||0, val=parseFloat(o.estimatedValue)||0, margin=parseFloat(o.estimatedMargin)||0;
+    if(prob>70) s+=25; else if(prob>=40) s+=15; else if(prob>0) s+=5;
+    if(val>50000) s+=20; else if(val>10000) s+=12; else if(val>0) s+=5;
+    if(o.stage==='Câștigată') s+=25; else if(o.stage==='Negociere') s+=20; else if(o.stage==='Propunere') s+=10;
+    if(o.closeDate){const days=(new Date(o.closeDate)-new Date())/(1000*60*60*24); if(days>=0&&days<=30) s+=15; else if(days<=60) s+=8;}
+    if(margin>30) s+=10; else if(margin>15) s+=5;
+    if(o.revenueType==='recurring') s+=10;
+    return Math.min(s,100);
+}
+
+function isStagnant(o) {
+    if(['Câștigată','Pierdută'].includes(o.stage)) return false;
+    const ref = o.lastActivityAt?.toDate?o.lastActivityAt.toDate()
+              : o.updatedAt?.toDate?o.updatedAt.toDate()
+              : o.createdAt?.toDate?o.createdAt.toDate():null;
+    if(!ref) return false;
+    return (new Date()-ref)/(1000*60*60*24)>14;
+}
+
+function scoreBadge(score) {
+    if(score>=61) return `<span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">🟢 ${score}</span>`;
+    if(score>=31) return `<span class="px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">🟡 ${score}</span>`;
+    return `<span class="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">🔴 ${score}</span>`;
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+    if(!user){window.location.href='../auth/index.html';return;}
+    currentUser=user;
+    const snap=await getDoc(doc(db,'users',user.uid));
+    if(!snap.exists()){window.location.href='../auth/index.html';return;}
+    currentUserData=snap.data();
+    el('user-info').textContent=currentUserData.name+' · '+currentUserData.role;
+
+    const level=ROLES[currentUserData.role]?.level||0;
+    if(level>2){
+        document.querySelectorAll('.manager-only').forEach(e=>e.classList.remove('hidden'));
+        await loadAgents(level);
+    }
+
+    const now=new Date(), y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0');
+    el('rep-date-from').value=`${y}-${m}-01`;
+    el('rep-date-to').value=new Date(y,now.getMonth()+1,0).toISOString().split('T')[0];
+
+    await loadAllOpps();
+    await loadTasks();
+    renderStagnant();
+    renderFunnel();
+    renderTopPriority();
+    renderProbChart();
+    renderWeightedChart();
+    renderDeadlines();
+});
+
+async function loadAgents(level) {
+    const q=level>=4?query(collection(db,'users'),where('role','==','agent'))
+                    :query(collection(db,'users'),where('role','==','agent'),where('managerId','==',currentUser.uid));
+    const snap=await getDocs(q); allAgents=[];
+    snap.forEach(d=>allAgents.push({id:d.id,...d.data()}));
+    [el('task-filter-agent'),el('rep-agent')].forEach(sel=>{
+        if(!sel)return;
+        allAgents.forEach(a=>{const o=document.createElement('option');o.value=a.id;o.textContent=a.name||a.email;sel.appendChild(o);});
+    });
+}
+
+async function loadAllOpps() {
+    const level=ROLES[currentUserData.role]?.level||0;
+    let q;
+    if(level>=4)      q=query(collection(db,'opportunities'),orderBy('createdAt','desc'));
+    else if(level===3) q=query(collection(db,'opportunities'),where('directorZonalId','==',currentUser.uid),orderBy('createdAt','desc'));
+    else               q=query(collection(db,'opportunities'),where('agentId','==',currentUser.uid),orderBy('createdAt','desc'));
+    const snap=await getDocs(q); allOpps=[];
+    snap.forEach(d=>{const o={id:d.id,...d.data()};o.score=o.score||calcScore(o);o.weightedValue=Math.round((parseFloat(o.estimatedValue)||0)*(parseFloat(o.probability)||0)/100);allOpps.push(o);});
+}
+
+async function loadTasks() {
+    const level=ROLES[currentUserData.role]?.level||0;
+    let q;
+    if(level>=4)      q=query(collection(db,'opp_tasks'),orderBy('dueDate','asc'));
+    else if(level===3) q=query(collection(db,'opp_tasks'),where('directorZonalId','==',currentUser.uid),orderBy('dueDate','asc'));
+    else               q=query(collection(db,'opp_tasks'),where('agentId','==',currentUser.uid),orderBy('dueDate','asc'));
+    const snap=await getDocs(q); allTasks=[];
+    snap.forEach(d=>allTasks.push({id:d.id,...d.data()}));
+    applyTaskFilters();
+}
+
+// ── TASK-URI ──────────────────────────────────────────────────────────────────
+window.applyTaskFilters = () => {
+    const search=el('task-search').value.toLowerCase().trim();
+    const status=el('task-filter-status').value;
+    const agent =el('task-filter-agent')?.value||'';
+    const now=new Date();
+    filteredTasks=allTasks.filter(t=>{
+        const due=new Date(t.dueDate),comp=t.status==='Finalizat',over=!comp&&due<now;
+        const eff=comp?'Finalizat':over?'Depășit':'Programat';
+        return (!search||(t.title||'').toLowerCase().includes(search)||(t.clientName||'').toLowerCase().includes(search))
+            && (!status||eff===status) && (!agent||t.agentId===agent);
+    });
+    renderTasksTable(now);
+};
+
+window.resetTaskFilters=()=>{
+    el('task-search').value='';el('task-filter-status').value='';
+    if(el('task-filter-agent'))el('task-filter-agent').value='';
+    applyTaskFilters();
+};
+
+function renderTasksTable(now) {
+    if(!now)now=new Date();
+    const level=ROLES[currentUserData.role]?.level||0;
+    const sched=allTasks.filter(t=>t.status!=='Finalizat'&&new Date(t.dueDate)>=now).length;
+    const done =allTasks.filter(t=>t.status==='Finalizat').length;
+    const over =allTasks.filter(t=>t.status!=='Finalizat'&&new Date(t.dueDate)<now).length;
+    el('ts-scheduled').textContent=sched; el('ts-done').textContent=done;
+    el('ts-overdue').textContent=over;    el('ts-total').textContent=allTasks.length;
+
+    if(!filteredTasks.length){
+        el('tasks-tbody').innerHTML=`<tr><td colspan="6" class="text-center py-16 text-gray-400"><div class="text-5xl mb-3">✅</div><p>Niciun task.</p></td></tr>`;
+        return;
+    }
+    el('tasks-tbody').innerHTML=filteredTasks.map(t=>{
+        const due=new Date(t.dueDate),comp=t.status==='Finalizat',isOver=!comp&&due<now;
+        const eff=comp?'Finalizat':isOver?'Depășit':'Programat';
+        const cls=comp?'bg-green-100 text-green-800':isOver?'bg-red-100 text-red-800':'bg-yellow-100 text-yellow-800';
+        return `
+        <tr class="hover:bg-indigo-50">
+            <td class="px-4 py-3 text-sm font-medium text-gray-800">${t.title||'—'}</td>
+            <td class="px-4 py-3"><div class="text-sm font-semibold text-gray-800">${t.clientName||'—'}</div>
+                <div class="text-xs text-indigo-600 font-mono">${t.oppCode||''}</div></td>
+            <td class="px-4 py-3 text-sm ${isOver&&!comp?'text-red-600 font-semibold':'text-gray-600'}">${t.dueDate||'—'}${isOver&&!comp?' ⚠️':''}</td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${cls}">${eff}</span></td>
+            <td class="px-4 py-3 text-sm text-gray-600 manager-only ${level<=2?'hidden':''}">${t.agentName||'—'}</td>
+            <td class="px-4 py-3 text-right">${!comp?`<button onclick="completeTask('${t.id}')" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg">✅ Finalizat</button>`:'<span class="text-xs text-green-600">✅</span>'}</td>
+        </tr>`;
+    }).join('');
+}
+
+window.completeTask=async(id)=>{
+    await updateDoc(doc(db,'opp_tasks',id),{status:'Finalizat',completedAt:Timestamp.now()});
+    toast('✅ Task finalizat!');
+    allTasks=allTasks.map(t=>t.id===id?{...t,status:'Finalizat'}:t);
+    applyTaskFilters();
+};
+
+// ── STAGNANTE ─────────────────────────────────────────────────────────────────
+function renderStagnant() {
+    const stag=allOpps.filter(o=>isStagnant(o)).sort((a,b)=>(b.score||0)-(a.score||0));
+    const badge=el('stagnant-badge');
+    if(stag.length){badge.textContent=stag.length;badge.classList.remove('hidden');}
+    else badge.classList.add('hidden');
+
+    if(!stag.length){
+        el('stagnant-list').innerHTML='<div class="text-center py-16 text-gray-400"><div class="text-5xl mb-3">🎉</div><p>Nicio oportunitate stagnantă!</p></div>';
+        return;
+    }
+    el('stagnant-list').innerHTML=stag.map(o=>{
+        const ref=o.lastActivityAt?.toDate?o.lastActivityAt.toDate():o.updatedAt?.toDate?o.updatedAt.toDate():o.createdAt?.toDate?o.createdAt.toDate():null;
+        const days=ref?Math.floor((new Date()-ref)/(1000*60*60*24)):0;
+        const sc=STAGE_COLORS[o.stage]||'bg-gray-100 text-gray-700';
+        return `
+        <div class="bg-white rounded-2xl shadow p-4 border-l-4 border-orange-400 flex items-start justify-between gap-4 flex-wrap">
+            <div class="flex-1">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <span class="font-mono text-xs text-indigo-700 font-bold">${o.oppId||'—'}</span>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${sc}">${o.stage}</span>
+                    ${scoreBadge(o.score)}
+                    <span class="text-xs text-orange-700 font-bold bg-orange-100 px-2 py-0.5 rounded-full">🟠 ${days} zile inactiv</span>
+                </div>
+                <p class="font-bold text-gray-800">${o.title||'—'}</p>
+                <p class="text-sm text-gray-500">${o.clientName||''} · ${o.agentName||''}</p>
+                <p class="text-sm font-semibold text-green-700 mt-1">${parseFloat(o.estimatedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON · Prob. ${o.probability||0}%</p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <button onclick="window.location.href='form.html?id=${o.id}'"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium">
+                    ✏️ Actualizează
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── VERIFICARE STAGNARE (alertă director) ─────────────────────────────────────
+window.runStagnantCheck=async(showToast=true)=>{
+    if(showToast) toast('🔄 Se verifică stagnările...');
+    try {
+        const stag=allOpps.filter(o=>isStagnant(o));
+        const newAlerts=[];
+        for(const o of stag){
+            const ref=o.lastActivityAt?.toDate?o.lastActivityAt.toDate():o.updatedAt?.toDate?o.updatedAt.toDate():null;
+            const days=ref?Math.floor((new Date()-ref)/(1000*60*60*24)):0;
+            // Alertă agent
+            newAlerts.push({
+                userId:o.agentId,
+                message:`🟠 Oportunitate stagnantă (${days} zile): "${o.title}" — necesită acțiune!`,
+                type:'stagnant_opportunity', oppId:o.id, read:false, createdAt:Timestamp.now()
+            });
+            // Alertă director dacă există
+            if(o.directorZonalId){
+                newAlerts.push({
+                    userId:o.directorZonalId,
+                    message:`🟠 Oportunitate stagnantă ${days} zile — "${o.title}" (${o.agentName}) — ${parseFloat(o.estimatedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON`,
+                    type:'stagnant_opportunity_manager', oppId:o.id, read:false, createdAt:Timestamp.now()
+                });
+            }
+        }
+        if(newAlerts.length) await Promise.all(newAlerts.map(a=>addDoc(collection(db,'alerts'),a)));
+        if(showToast) toast(`✅ ${stag.length} oportunități stagnante — ${newAlerts.length} alerte trimise.`);
+    } catch(e){ if(showToast) toast('❌ Eroare: '+e.message,false); }
+};
+
+// ── RAPORT ────────────────────────────────────────────────────────────────────
+window.generateReport=async()=>{
+    const from=el('rep-date-from').value, to=el('rep-date-to').value, agentF=el('rep-agent').value;
+    if(!from||!to){toast('⚠️ Selectează perioada!',false);return;}
+    const dFrom=new Date(from), dTo=new Date(to+'T23:59:59');
+    let opps=allOpps.filter(o=>{const dt=o.createdAt?.toDate?o.createdAt.toDate():new Date(o.createdAt);return dt>=dFrom&&dt<=dTo&&(!agentF||o.agentId===agentF);});
+
+    if(!opps.length){el('rep-kpis').classList.add('hidden');el('rep-tables').classList.add('hidden');el('rep-empty').classList.remove('hidden');toast('Nicio oportunitate în perioadă.',false);return;}
+    el('rep-empty').classList.add('hidden');el('rep-kpis').classList.remove('hidden');el('rep-tables').classList.remove('hidden');
+
+    const won=opps.filter(o=>o.stage==='Câștigată').length;
+    const lost=opps.filter(o=>o.stage==='Pierdută').length;
+    const winrate=opps.length?Math.round(won/opps.length*100):0;
+    const totalW=opps.reduce((s,o)=>s+(o.weightedValue||0),0);
+    el('rep-total').textContent=opps.length; el('rep-won').textContent=won;
+    el('rep-lost').textContent=lost; el('rep-winrate').textContent=winrate+'%';
+    el('rep-weighted').textContent=totalW.toLocaleString('ro-RO',{maximumFractionDigits:0})+' RON';
+
+    // Per agent
+    const agMap={};
+    opps.forEach(o=>{
+        if(!agMap[o.agentId]) agMap[o.agentId]={name:o.agentName||'—',total:0,won:0,lost:0,neg:0,priority:0,value:0,weighted:0};
+        const a=agMap[o.agentId]; a.total++; a.value+=parseFloat(o.estimatedValue||0); a.weighted+=(o.weightedValue||0);
+        if(o.stage==='Câștigată') a.won++; if(o.stage==='Pierdută') a.lost++;
+        if(o.stage==='Negociere') a.neg++; if((o.score||0)>=61) a.priority++;
+    });
+    el('rep-agent-tbody').innerHTML=Object.values(agMap).map(a=>{
+        const wr=a.total?Math.round(a.won/a.total*100):0;
+        const rc=wr>=50?'text-green-600':wr>=25?'text-yellow-600':'text-red-600';
+        return `<tr class="hover:bg-indigo-50">
+            <td class="px-4 py-3 font-semibold text-gray-800 text-sm">${a.name}</td>
+            <td class="px-4 py-3 text-center font-bold text-indigo-700">${a.total}</td>
+            <td class="px-4 py-3 text-center text-green-600 font-semibold">${a.won}</td>
+            <td class="px-4 py-3 text-center text-red-500">${a.lost}</td>
+            <td class="px-4 py-3 text-center text-purple-600">${a.neg}</td>
+            <td class="px-4 py-3 text-center text-green-700 font-bold">${a.priority}</td>
+            <td class="px-4 py-3 text-center font-semibold ${rc}">${wr}%</td>
+            <td class="px-4 py-3 text-center text-gray-700">${a.value.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</td>
+            <td class="px-4 py-3 text-center text-purple-700 font-semibold">${a.weighted.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</td>
+        </tr>`;
+    }).join('');
+
+    // Per stadiu
+    el('rep-stage-tbody').innerHTML=STAGES.map(stage=>{
+        const items=opps.filter(o=>o.stage===stage); if(!items.length) return '';
+        const val=items.reduce((s,o)=>s+parseFloat(o.estimatedValue||0),0);
+        const wval=items.reduce((s,o)=>s+(o.weightedValue||0),0);
+        const avgProb=Math.round(items.reduce((s,o)=>s+(parseFloat(o.probability)||0),0)/items.length);
+        const avgScore=Math.round(items.reduce((s,o)=>s+(o.score||0),0)/items.length);
+        const avgMargin=Math.round(items.reduce((s,o)=>s+(parseFloat(o.estimatedMargin)||0),0)/items.length);
+        const sc=STAGE_COLORS[stage]||'bg-gray-100 text-gray-700';
+        return `<tr class="hover:bg-indigo-50">
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${sc}">${stage}</span></td>
+            <td class="px-4 py-3 text-center font-bold text-indigo-700">${items.length}</td>
+            <td class="px-4 py-3 text-center text-gray-700">${val.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</td>
+            <td class="px-4 py-3 text-center text-purple-700 font-semibold">${wval.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</td>
+            <td class="px-4 py-3 text-center text-gray-600">${avgProb}%</td>
+            <td class="px-4 py-3 text-center">${avgScore>=61?'🟢':avgScore>=31?'🟡':'🔴'} ${avgScore}</td>
+            <td class="px-4 py-3 text-center text-green-700">${avgMargin}%</td>
+        </tr>`;
+    }).join('');
+
+    // Recurring vs one-time
+    ['recurring','one-time'].forEach(type=>{
+        const items=opps.filter(o=>o.revenueType===type);
+        const val=items.reduce((s,o)=>s+parseFloat(o.estimatedValue||0),0);
+        const won=items.filter(o=>o.stage==='Câștigată').length;
+        const id=type==='recurring'?'rev-recurring-content':'rev-onetime-content';
+        el(id).innerHTML=`
+            <p><span class="text-gray-500">Total:</span> <strong>${items.length}</strong></p>
+            <p><span class="text-gray-500">Câștigate:</span> <strong class="text-green-600">${won}</strong></p>
+            <p><span class="text-gray-500">Valoare estimată:</span> <strong>${val.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</strong></p>
+            <p><span class="text-gray-500">Rată câștig:</span> <strong>${items.length?Math.round(won/items.length*100):0}%</strong></p>`;
+    });
+    toast('✅ Raport generat!');
+};
+
+// ── FUNNEL ────────────────────────────────────────────────────────────────────
+function renderFunnel() {
+    const total=allOpps.length||1;
+    const stageColors={'Identificată':'bg-blue-400','Propunere':'bg-yellow-400','Negociere':'bg-purple-500','Câștigată':'bg-green-500','Pierdută':'bg-red-400'};
+    el('funnel-chart').innerHTML=STAGES.map((s,i)=>{
+        const count=allOpps.filter(o=>o.stage===s).length;
+        const pct=Math.round(count/total*100);
+        const val=allOpps.filter(o=>o.stage===s).reduce((sum,o)=>sum+parseFloat(o.estimatedValue||0),0);
+        return `
+        <div>
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                <span class="font-semibold">${s}</span>
+                <span>${count} opp · ${val.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-7 relative overflow-hidden">
+                <div class="${stageColors[s]} h-7 rounded-full flex items-center justify-end pr-3 transition-all duration-700"
+                     style="width:${Math.max(pct,3)}%; margin-left:${i*2}%">
+                    <span class="text-white text-xs font-bold">${pct}%</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderTopPriority() {
+    const top=allOpps.filter(o=>o.score>=61&&!['Câștigată','Pierdută'].includes(o.stage)).sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,5);
+    el('top-priority-list').innerHTML=top.length?top.map(o=>`
+        <div class="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-100 cursor-pointer hover:bg-indigo-100"
+             onclick="window.location.href='form.html?id=${o.id}'">
+            <div>
+                <p class="font-semibold text-gray-800 text-sm">${o.title||'—'}</p>
+                <p class="text-xs text-gray-500">${o.agentName||''} · ${o.stage}</p>
+            </div>
+            <div class="text-right">
+                ${scoreBadge(o.score)}
+                <p class="text-xs text-purple-700 font-semibold mt-1">${(o.weightedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON pond.</p>
+            </div>
+        </div>`).join('')
+    :'<p class="text-center text-gray-400 py-8 text-sm">Nicio oportunitate prioritară activă</p>';
+}
+
+function renderProbChart() {
+    const bands=[{label:'> 70%',min:70,max:100,color:'bg-green-500'},{label:'40-70%',min:40,max:70,color:'bg-yellow-400'},{label:'< 40%',min:0,max:40,color:'bg-red-400'}];
+    const total=allOpps.length||1;
+    el('prob-chart').innerHTML=bands.map(b=>{
+        const items=allOpps.filter(o=>{const p=parseFloat(o.probability)||0;return p>=b.min&&p<=(b.max===100?100:b.max);});
+        const pct=Math.round(items.length/total*100);
+        const val=items.reduce((s,o)=>s+parseFloat(o.estimatedValue||0),0);
+        return `<div>
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                <span class="font-medium">${b.label}</span>
+                <span>${items.length} opp · ${val.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-5">
+                <div class="${b.color} h-5 rounded-full transition-all duration-700" style="width:${Math.max(pct,2)}%"></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderWeightedChart() {
+    const agMap={};
+    allOpps.forEach(o=>{if(!['Câștigată','Pierdută'].includes(o.stage)){if(!agMap[o.agentId])agMap[o.agentId]={name:o.agentName||'—',weighted:0};agMap[o.agentId].weighted+=(o.weightedValue||0);}});
+    const agents=Object.values(agMap).sort((a,b)=>b.weighted-a.weighted);
+    const maxW=agents[0]?.weighted||1;
+    el('weighted-chart').innerHTML=agents.length?agents.map(a=>{
+        const pct=Math.round(a.weighted/maxW*100);
+        return `<div>
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                <span class="font-medium">${a.name}</span>
+                <span class="font-semibold text-purple-700">${a.weighted.toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-5">
+                <div class="bg-indigo-500 h-5 rounded-full transition-all duration-700" style="width:${Math.max(pct,2)}%"></div>
+            </div>
+        </div>`;
+    }).join(''):'<p class="text-center text-gray-400 py-4 text-sm">Nicio dată</p>';
+}
+
+function renderDeadlines() {
+    const now=new Date(), d30=new Date(); d30.setDate(d30.getDate()+30);
+    const upcoming=allOpps.filter(o=>o.closeDate&&!['Câștigată','Pierdută'].includes(o.stage)&&new Date(o.closeDate)>=now&&new Date(o.closeDate)<=d30).sort((a,b)=>new Date(a.closeDate)-new Date(b.closeDate));
+    const sc2=o=>STAGE_COLORS[o.stage]||'bg-gray-100 text-gray-700';
+    el('deadline-list').innerHTML=upcoming.length?upcoming.map(o=>{
+        const days=Math.ceil((new Date(o.closeDate)-now)/(1000*60*60*24));
+        const urgency=days<=7?'border-red-400 bg-red-50':days<=14?'border-orange-400 bg-orange-50':'border-indigo-300 bg-indigo-50';
+        return `
+        <div class="rounded-xl p-3 border-l-4 ${urgency} cursor-pointer hover:opacity-90"
+             onclick="window.location.href='form.html?id=${o.id}'">
+            <div class="flex justify-between items-start mb-1">
+                <span class="font-mono text-xs text-indigo-600">${o.oppId||'—'}</span>
+                <span class="text-xs font-bold ${days<=7?'text-red-600':days<=14?'text-orange-600':'text-indigo-600'}">${days} zile</span>
+            </div>
+            <p class="font-semibold text-gray-800 text-sm leading-tight">${o.title||'—'}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${o.agentName||''}</p>
+            <div class="flex justify-between items-center mt-2">
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${sc2(o)}">${o.stage}</span>
+                <span class="text-xs font-bold text-green-700">${parseFloat(o.estimatedValue||0).toLocaleString('ro-RO',{maximumFractionDigits:0})} RON</span>
+            </div>
+        </div>`;
+    }).join(''):'<p class="text-gray-400 text-sm col-span-3 text-center py-8">Nicio scadență în următoarele 30 zile 🎉</p>';
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+window.exportReport=(type)=>{
+    let rows,filename;
+    if(type==='agent'){
+        rows=[['Agent','Total','Câștigate','Pierdute','Negociere','Prioritare','Rată câștig','Val. Est.','Val. Ponderată']];
+        el('rep-agent-tbody').querySelectorAll('tr').forEach(tr=>rows.push([...tr.querySelectorAll('td')].map(td=>td.textContent.trim())));
+        filename='raport_oportunitati_agenti';
+    } else {
+        rows=[['Stadiu','Total','Val. Estimată','Val. Ponderată','Prob. Medie','Scor Mediu','Marjă Medie']];
+        el('rep-stage-tbody').querySelectorAll('tr').forEach(tr=>rows.push([...tr.querySelectorAll('td')].map(td=>td.textContent.trim())));
+        filename='raport_oportunitati_stadii';
+    }
+    const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+    a.download=`${filename}_${new Date().toLocaleDateString('ro-RO').replace(/\./g,'-')}.csv`;
+    a.click(); toast('✅ Export realizat!');
+};
+
+// ── TAB SWITCH ────────────────────────────────────────────────────────────────
+window.setTab=tab=>{
+    ['tasks','stagnant','report','funnel'].forEach(t=>{
+        el(`tab-${t}`)?.classList.toggle('hidden',t!==tab);
+        const btn=el(`tab-btn-${t}`);
+        if(btn) btn.className=`px-4 py-2 rounded-lg text-sm font-medium transition-all ${t===tab?'bg-indigo-600 text-white':'text-gray-600 hover:bg-gray-100'}`;
+    });
+};
+</script>
+</body>
+</html>
