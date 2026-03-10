@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Rapoarte</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='../auth/index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+            <div>
+                <h1 class="text-xl font-bold">📊 Modul Rapoarte</h1>
+                <p id="user-info" class="text-blue-200 text-xs"></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="role-badge" class="px-3 py-1 rounded-full text-sm font-semibold bg-white bg-opacity-20"></span>
+            <button id="btn-export-csv"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow transition-colors">
+                📥 Export CSV
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- FILTRE GLOBALE -->
+<div class="max-w-7xl mx-auto px-4 py-4">
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">De la</label>
+                <input id="filter-from" type="date"
+                       class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"/>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Până la</label>
+                <input id="filter-to" type="date"
+                       class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"/>
+            </div>
+            <div id="filter-agent-wrap">
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Agent</label>
+                <select id="filter-agent"
+                        class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                    <option value="">Toți agenții</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Status Ofertă</label>
+                <select id="filter-status"
+                        class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+                    <option value="">Toate</option>
+                    <option>Prospect</option>
+                    <option>Ofertă trimisă</option>
+                    <option>Negociere</option>
+                    <option>Câștigată</option>
+                    <option>Pierdută</option>
+                    <option>Anulată</option>
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="applyFilters()"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    🔍 Aplică
+                </button>
+                <button onclick="resetFilters()"
+                        class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm transition-colors">✕</button>
+            </div>
+        </div>
+        <!-- Shortcuts perioadă -->
+        <div class="flex gap-2 mt-3 flex-wrap">
+            <span class="text-xs text-gray-400 self-center">Perioadă rapidă:</span>
+            <button onclick="setQuick(7)"  class="px-3 py-1 text-xs border rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors">7 zile</button>
+            <button onclick="setQuick(30)" class="px-3 py-1 text-xs border rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors">30 zile</button>
+            <button onclick="setQuick(90)" class="px-3 py-1 text-xs border rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors">90 zile</button>
+            <button onclick="setQuickMonth()" class="px-3 py-1 text-xs border rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors">Luna curentă</button>
+            <button onclick="setQuickYear()"  class="px-3 py-1 text-xs border rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors">Anul curent</button>
+        </div>
+    </div>
+
+    <!-- TABS RAPOARTE -->
+    <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
+        <button onclick="showTab('vanzari')"       id="tab-vanzari"       class="tab-btn active-tab px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all">📈 Vânzări/Agent</button>
+        <button onclick="showTab('produse')"       id="tab-produse"       class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all bg-white shadow text-gray-600 hover:bg-blue-50">📦 Top Produse</button>
+        <button onclick="showTab('conversie')"     id="tab-conversie"     class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all bg-white shadow text-gray-600 hover:bg-blue-50">🎯 Conversie</button>
+        <button onclick="showTab('expirate')"      id="tab-expirate"      class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all bg-white shadow text-gray-600 hover:bg-blue-50">⚠️ Expirate/Risc</button>
+        <button onclick="showTab('pipeline')"      id="tab-pipeline"      class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all bg-white shadow text-gray-600 hover:bg-blue-50">💰 Pipeline</button>
+        <button onclick="showTab('pierdere')"      id="tab-pierdere"      class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all bg-white shadow text-gray-600 hover:bg-blue-50">❌ Motive Pierdere</button>
+        <button onclick="showTab('performanta')"   id="tab-performanta"   class="tab-btn dir-only px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all bg-white shadow text-gray-600 hover:bg-blue-50">🏆 Performanță Dir.</button>
+    </div>
+
+    <!-- LOADING -->
+    <div id="loading-indicator" class="hidden text-center py-16 text-gray-400">
+        <div class="text-5xl mb-3">⏳</div><p>Se încarcă datele...</p>
+    </div>
+
+    <!-- ═══ TAB: VÂNZĂRI PE AGENT / PERIOADĂ ═══ -->
+    <div id="tab-content-vanzari" class="tab-content space-y-6">
+        <!-- KPI cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+                <p class="text-xs text-gray-500">Total Oferte</p>
+                <p id="kpi-total" class="text-3xl font-bold text-blue-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+                <p class="text-xs text-gray-500">Valoare Câștigată</p>
+                <p id="kpi-won-val" class="text-2xl font-bold text-green-600 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-500">
+                <p class="text-xs text-gray-500">În Negociere</p>
+                <p id="kpi-neg-val" class="text-2xl font-bold text-yellow-600 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+                <p class="text-xs text-gray-500">Pierdute</p>
+                <p id="kpi-lost" class="text-2xl font-bold text-red-600 mt-1">0</p>
+            </div>
+        </div>
+        <!-- Grafic + Tabel -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Valoare câștigată pe agent (RON)</h3>
+                <canvas id="chart-agent-val" height="250"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Nr. oferte pe agent</h3>
+                <canvas id="chart-agent-cnt" height="250"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 class="font-bold text-gray-800">Detalii pe Agent</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Câștigate</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare Câștigată</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Pipeline Activ</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rată Conversie</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-agent" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: TOP PRODUSE ═══ -->
+    <div id="tab-content-produse" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Top 10 Produse — Valoare vândută (RON)</h3>
+                <canvas id="chart-prod-val" height="300"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Top 10 Produse — Cantitate vândută</h3>
+                <canvas id="chart-prod-qty" height="300"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 class="font-bold text-gray-800">Toate Produsele — Detalii</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Produs</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Cantitate</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare (fără TVA)</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare (cu TVA)</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Nr. Oferte</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-produse" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: RATĂ CONVERSIE ═══ -->
+    <div id="tab-content-conversie" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-400">
+                <p class="text-xs text-gray-500">Total Oferte</p>
+                <p id="conv-total" class="text-3xl font-bold text-blue-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+                <p class="text-xs text-gray-500">Câștigate</p>
+                <p id="conv-won" class="text-3xl font-bold text-green-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+                <p class="text-xs text-gray-500">Pierdute</p>
+                <p id="conv-lost" class="text-3xl font-bold text-red-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500">
+                <p class="text-xs text-gray-500">Rată Conversie</p>
+                <p id="conv-rate" class="text-3xl font-bold text-purple-600 mt-1">0%</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Distribuție statusuri</h3>
+                <canvas id="chart-conv-pie" height="280"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Rată conversie pe agent (%)</h3>
+                <canvas id="chart-conv-agent" height="280"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: EXPIRATE / LA RISC ═══ -->
+    <div id="tab-content-expirate" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-600">
+                <p class="text-xs text-gray-500">Expirate (neînchise)</p>
+                <p id="exp-count" class="text-3xl font-bold text-red-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-500">
+                <p class="text-xs text-gray-500">Expiră în 7 zile</p>
+                <p id="exp-soon" class="text-3xl font-bold text-orange-500 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+                <p class="text-xs text-gray-500">Valoare la Risc</p>
+                <p id="exp-val" class="text-2xl font-bold text-yellow-600 mt-1">0 RON</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center">
+                <h3 class="font-bold text-gray-800">Oferte Expirate / La Risc</h3>
+                <div class="flex gap-2">
+                    <button onclick="setExpFilter('all')"     id="exp-btn-all"     class="px-3 py-1 text-xs rounded-lg bg-blue-600 text-white">Toate</button>
+                    <button onclick="setExpFilter('expired')" id="exp-btn-expired" class="px-3 py-1 text-xs rounded-lg border hover:bg-red-50 text-gray-600">Expirate</button>
+                    <button onclick="setExpFilter('soon')"    id="exp-btn-soon"    class="px-3 py-1 text-xs rounded-lg border hover:bg-orange-50 text-gray-600">Expiră curând</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Nr. Ofertă</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Scadență</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Zile</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-expirate" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: PIPELINE PE STATUS ═══ -->
+    <div id="tab-content-pipeline" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="bg-white rounded-xl shadow p-4 border-t-4 border-gray-400">
+                <p class="text-xs text-gray-500">Prospect</p>
+                <p id="pipe-prospect-cnt" class="text-2xl font-bold text-gray-600 mt-1">0</p>
+                <p id="pipe-prospect-val" class="text-xs text-gray-400 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-t-4 border-blue-400">
+                <p class="text-xs text-gray-500">Ofertă Trimisă</p>
+                <p id="pipe-sent-cnt" class="text-2xl font-bold text-blue-600 mt-1">0</p>
+                <p id="pipe-sent-val" class="text-xs text-gray-400 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-t-4 border-yellow-400">
+                <p class="text-xs text-gray-500">Negociere</p>
+                <p id="pipe-neg-cnt" class="text-2xl font-bold text-yellow-600 mt-1">0</p>
+                <p id="pipe-neg-val" class="text-xs text-gray-400 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-t-4 border-green-500">
+                <p class="text-xs text-gray-500">Câștigată</p>
+                <p id="pipe-won-cnt" class="text-2xl font-bold text-green-600 mt-1">0</p>
+                <p id="pipe-won-val2" class="text-xs text-gray-400 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-t-4 border-red-400">
+                <p class="text-xs text-gray-500">Pierdută</p>
+                <p id="pipe-lost-cnt" class="text-2xl font-bold text-red-600 mt-1">0</p>
+                <p id="pipe-lost-val" class="text-xs text-gray-400 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-t-4 border-gray-300">
+                <p class="text-xs text-gray-500">Anulată</p>
+                <p id="pipe-cancel-cnt" class="text-2xl font-bold text-gray-400 mt-1">0</p>
+                <p id="pipe-cancel-val" class="text-xs text-gray-400 mt-1">0 RON</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Valoare pipeline pe status (RON)</h3>
+                <canvas id="chart-pipeline-val" height="260"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Nr. oferte pe status</h3>
+                <canvas id="chart-pipeline-cnt" height="260"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: MOTIVE PIERDERE ═══ -->
+    <div id="tab-content-pierdere" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Distribuție motive pierdere</h3>
+                <canvas id="chart-loss-pie" height="300"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Valoare pierdută pe motiv (RON)</h3>
+                <canvas id="chart-loss-val" height="300"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 class="font-bold text-gray-800">Oferte Pierdute — Detalii</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Motiv</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Nr. Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare Pierdută</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">% din Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-pierdere" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: PERFORMANȚĂ DIRECTORI ═══ -->
+    <div id="tab-content-performanta" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Valoare câștigată pe Director Zonal (RON)</h3>
+                <canvas id="chart-dir-val" height="260"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Rată conversie pe Director Zonal (%)</h3>
+                <canvas id="chart-dir-conv" height="260"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 class="font-bold text-gray-800">Detalii pe Director Zonal</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Director Zonal</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Nr. Agenți</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Câștigate</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare Câștigată</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rată Conversie</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-directori" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div><!-- end max-w-7xl -->
+
+<script type="module">
+import { initializeApp }        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                                from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc }
+                                from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99,label:'Administrator'},
+    presedinte:{level:6,label:'Președinte'},
+    director_general:{level:5,label:'Director General'},
+    director_regional:{level:4,label:'Director Regional'},
+    director_zonal:{level:3,label:'Director Zonal'},
+    agent:{level:2,label:'Agent Vânzări'}
+};
+
+const CHART_COLORS = [
+    '#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6',
+    '#06B6D4','#F97316','#84CC16','#EC4899','#6366F1'
+];
+
+let currentUser = null, currentUserData = null, userLevel = 0;
+let allSales = [], allUsers = [];
+let filteredSales = [];
+let activeTab = 'vanzari';
+let expFilter = 'all';
+const charts = {};
+
+const el    = id => document.getElementById(id);
+const fmt   = n  => parseFloat(n||0).toLocaleString('ro-RO',{maximumFractionDigits:0}) + ' RON';
+const pct   = (a,b) => b ? Math.round(a/b*100) + '%' : '0%';
+const toast = (msg, ok=true) => {
+    const t = el('toast');
+    t.textContent = msg;
+    t.className = `fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden');
+    setTimeout(()=>t.classList.add('hidden'),3500);
+};
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href='../auth/index.html'; return; }
+    currentUser = user;
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (!snap.exists()) { window.location.href='../auth/index.html'; return; }
+    currentUserData = snap.data();
+    userLevel = ROLES[currentUserData.role]?.level || 0;
+    el('user-info').textContent  = currentUserData.name + ' · ' + currentUserData.email;
+    el('role-badge').textContent = ROLES[currentUserData.role]?.label || currentUserData.role;
+
+    // Ascunde tab Performanță pentru directori zonali
+    if (userLevel < 4) {
+        document.querySelectorAll('.dir-only').forEach(e => e.classList.add('hidden'));
+    }
+
+    // Filtre perioadă implicite (luna curentă)
+    setQuickMonth();
+
+    await Promise.all([loadUsers(), loadSales()]);
+    await loadAgentsFilter();
+    renderActiveTab();
+});
+
+// ── ÎNCARCĂ UTILIZATORI ───────────────────────────────────────────────────────
+async function loadUsers() {
+    const snap = await getDocs(collection(db,'users'));
+    allUsers = [];
+    snap.forEach(d => allUsers.push({id:d.id,...d.data()}));
+}
+
+// ── ÎNCARCĂ VÂNZĂRI ───────────────────────────────────────────────────────────
+async function loadSales() {
+    el('loading-indicator').classList.remove('hidden');
+    try {
+        let q;
+        if (userLevel >= 4) {
+            q = query(collection(db,'sales'), orderBy('createdAt','desc'));
+        } else if (userLevel === 3) {
+            q = query(collection(db,'sales'), where('directorZonalId','==',currentUser.uid), orderBy('createdAt','desc'));
+        } else {
+            q = query(collection(db,'sales'), where('agentId','==',currentUser.uid), orderBy('createdAt','desc'));
+        }
+        const snap = await getDocs(q);
+        allSales = [];
+        snap.forEach(d => allSales.push({id:d.id,...d.data()}));
+    } catch(e) {
+        toast('Eroare la încărcare: '+e.message, false);
+    }
+    el('loading-indicator').classList.add('hidden');
+}
+
+// ── FILTRE AGENȚI ─────────────────────────────────────────────────────────────
+async function loadAgentsFilter() {
+    if (userLevel <= 2) { el('filter-agent-wrap').classList.add('hidden'); return; }
+    const agents = allUsers.filter(u => u.role === 'agent');
+    const sel = el('filter-agent');
+    agents.forEach(u => {
+        const o = document.createElement('option');
+        o.value = u.id; o.textContent = u.name || u.email;
+        sel.appendChild(o);
+    });
+}
+
+// ── APLICĂ FILTRE ─────────────────────────────────────────────────────────────
+window.applyFilters = () => {
+    const from   = el('filter-from').value;
+    const to     = el('filter-to').value;
+    const agent  = el('filter-agent').value;
+    const status = el('filter-status').value;
+
+    filteredSales = allSales.filter(s => {
+        const d = s.offerDate || (s.createdAt?.seconds ? new Date(s.createdAt.seconds*1000).toISOString().split('T')[0] : '');
+        const mFrom   = !from   || d >= from;
+        const mTo     = !to     || d <= to;
+        const mAgent  = !agent  || s.agentId === agent;
+        const mStatus = !status || s.status === status;
+        return mFrom && mTo && mAgent && mStatus;
+    });
+    renderActiveTab();
+};
+
+window.resetFilters = () => {
+    el('filter-agent').value = '';
+    el('filter-status').value = '';
+    setQuickMonth();
+};
+
+// ── PERIOADĂ RAPIDĂ ───────────────────────────────────────────────────────────
+window.setQuick = days => {
+    const to   = new Date();
+    const from = new Date(); from.setDate(from.getDate() - days);
+    el('filter-from').value = from.toISOString().split('T')[0];
+    el('filter-to').value   = to.toISOString().split('T')[0];
+    if (allSales.length) applyFilters();
+};
+window.setQuickMonth = () => {
+    const now = new Date();
+    el('filter-from').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    el('filter-to').value   = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().split('T')[0];
+    if (allSales.length) applyFilters();
+};
+window.setQuickYear = () => {
+    const y = new Date().getFullYear();
+    el('filter-from').value = `${y}-01-01`;
+    el('filter-to').value   = `${y}-12-31`;
+    if (allSales.length) applyFilters();
+};
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+window.showTab = tab => {
+    activeTab = tab;
+    document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
+    el('tab-content-' + tab).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.className = b.className.replace('bg-blue-600 text-white','').replace('bg-white shadow text-gray-600 hover:bg-blue-50','') + ' bg-white shadow text-gray-600 hover:bg-blue-50';
+    });
+    const btn = el('tab-' + tab);
+    btn.className = btn.className.replace('bg-white shadow text-gray-600 hover:bg-blue-50','') + ' bg-blue-600 text-white';
+    renderActiveTab();
+};
+
+function renderActiveTab() {
+    if (!filteredSales.length && allSales.length === 0) return;
+    const s = filteredSales;
+    switch(activeTab) {
+        case 'vanzari':    renderVanzari(s);    break;
+        case 'produse':    renderProduse(s);    break;
+        case 'conversie':  renderConversie(s);  break;
+        case 'expirate':   renderExpirate(s);   break;
+        case 'pipeline':   renderPipeline(s);   break;
+        case 'pierdere':   renderPierdere(s);   break;
+        case 'performanta':renderPerformanta(s); break;
+    }
+}
+
+// ── HELPER CHART ──────────────────────────────────────────────────────────────
+function makeChart(id, type, labels, datasets, opts={}) {
+    if (charts[id]) charts[id].destroy();
+    const ctx = el(id)?.getContext('2d');
+    if (!ctx) return;
+    charts[id] = new Chart(ctx, {
+        type, data:{labels,datasets},
+        options:{responsive:true, plugins:{legend:{display:opts.legend??false}}, ...opts.extra}
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R1 — VÂNZĂRI PE AGENT
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderVanzari(sales) {
+    // KPI globale
+    el('kpi-total').textContent   = sales.length;
+    const wonVal = sales.filter(s=>s.status==='Câștigată').reduce((a,s)=>a+parseFloat(s.totalWithVat||0),0);
+    const negVal = sales.filter(s=>s.status==='Negociere').reduce((a,s)=>a+parseFloat(s.totalWithVat||0),0);
+    el('kpi-won-val').textContent = fmt(wonVal);
+    el('kpi-neg-val').textContent = fmt(negVal);
+    el('kpi-lost').textContent    = sales.filter(s=>s.status==='Pierdută').length;
+
+    // Grupare pe agent
+    const byAgent = {};
+    sales.forEach(s => {
+        const k = s.agentId || 'necunoscut';
+        if (!byAgent[k]) byAgent[k] = {name: s.agentName||'Necunoscut', total:0, won:0, wonVal:0, pipeVal:0};
+        byAgent[k].total++;
+        if (s.status==='Câștigată') { byAgent[k].won++; byAgent[k].wonVal += parseFloat(s.totalWithVat||0); }
+        if (['Prospect','Ofertă trimisă','Negociere'].includes(s.status))
+            byAgent[k].pipeVal += parseFloat(s.totalWithVat||0);
+    });
+    const agents = Object.values(byAgent).sort((a,b)=>b.wonVal-a.wonVal);
+    const labels = agents.map(a=>a.name);
+
+    makeChart('chart-agent-val','bar', labels, [{
+        label:'Valoare câștigată (RON)',
+        data: agents.map(a=>Math.round(a.wonVal)),
+        backgroundColor: CHART_COLORS.slice(0,agents.length)
+    }]);
+    makeChart('chart-agent-cnt','bar', labels, [{
+        label:'Nr. oferte',
+        data: agents.map(a=>a.total),
+        backgroundColor:'#6366F1'
+    }]);
+
+    el('tbody-agent').innerHTML = agents.length
+        ? agents.map(a => `
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-semibold text-gray-800">${a.name}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${a.total}</td>
+                <td class="px-4 py-3 text-right text-green-700 font-semibold">${a.won}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(a.wonVal)}</td>
+                <td class="px-4 py-3 text-right text-blue-600">${fmt(a.pipeVal)}</td>
+                <td class="px-4 py-3 text-right">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
+                        ${pct(a.won,a.total)}
+                    </span>
+                </td>
+            </tr>`).join('')
+        : `<tr><td colspan="6" class="text-center py-8 text-gray-400">Nu există date în perioada selectată.</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R2 — TOP PRODUSE
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderProduse(sales) {
+    const wonSales = sales.filter(s=>s.status==='Câștigată');
+    const byProd = {};
+    wonSales.forEach(s => {
+        (s.lines||[]).forEach(l => {
+            const k = (l.name||'Necunoscut').trim();
+            if (!byProd[k]) byProd[k] = {name:k, qty:0, valNoVat:0, valWithVat:0, offers:new Set()};
+            const total = l.price * l.qty * (1 - (l.discount||0)/100);
+            byProd[k].qty       += parseFloat(l.qty||0);
+            byProd[k].valNoVat  += total;
+            byProd[k].valWithVat+= total * 1.21;
+            byProd[k].offers.add(s.id);
+        });
+    });
+    const prods = Object.values(byProd).sort((a,b)=>b.valNoVat-a.valNoVat);
+    const top10 = prods.slice(0,10);
+
+    makeChart('chart-prod-val','bar', top10.map(p=>p.name.length>20?p.name.slice(0,18)+'…':p.name), [{
+        label:'Valoare (RON)', data: top10.map(p=>Math.round(p.valNoVat)),
+        backgroundColor: CHART_COLORS.slice(0,top10.length)
+    }], {extra:{indexAxis:'y'}});
+
+    makeChart('chart-prod-qty','bar', top10.map(p=>p.name.length>20?p.name.slice(0,18)+'…':p.name), [{
+        label:'Cantitate', data: top10.map(p=>Math.round(p.qty*100)/100),
+        backgroundColor:'#10B981'
+    }], {extra:{indexAxis:'y'}});
+
+    el('tbody-produse').innerHTML = prods.length
+        ? prods.map((p,i)=>`
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-gray-500 text-sm">${i+1}</td>
+                <td class="px-4 py-3 font-semibold text-gray-800">${p.name}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${Math.round(p.qty*100)/100}</td>
+                <td class="px-4 py-3 text-right text-gray-800">${fmt(p.valNoVat)}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(p.valWithVat)}</td>
+                <td class="px-4 py-3 text-right text-blue-600">${p.offers.size}</td>
+            </tr>`).join('')
+        : `<tr><td colspan="6" class="text-center py-8 text-gray-400">Nu există vânzări câștigate în perioada selectată.</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R3 — RATA DE CONVERSIE
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderConversie(sales) {
+    const won  = sales.filter(s=>s.status==='Câștigată').length;
+    const lost = sales.filter(s=>s.status==='Pierdută').length;
+    el('conv-total').textContent = sales.length;
+    el('conv-won').textContent   = won;
+    el('conv-lost').textContent  = lost;
+    el('conv-rate').textContent  = pct(won, sales.length);
+
+    // Pie statusuri
+    const statusCounts = {};
+    sales.forEach(s => { statusCounts[s.status] = (statusCounts[s.status]||0)+1; });
+    const statusColors = {
+        'Prospect':'#9CA3AF','Ofertă trimisă':'#3B82F6','Negociere':'#F59E0B',
+        'Câștigată':'#10B981','Pierdută':'#EF4444','Anulată':'#6B7280'
+    };
+    makeChart('chart-conv-pie','doughnut',
+        Object.keys(statusCounts),
+        [{data:Object.values(statusCounts), backgroundColor:Object.keys(statusCounts).map(k=>statusColors[k]||'#ccc')}],
+        {legend:true}
+    );
+
+    // Conversie pe agent
+    const byAgent = {};
+    sales.forEach(s => {
+        const k = s.agentId||'x';
+        if (!byAgent[k]) byAgent[k]={name:s.agentName||'N/A',total:0,won:0};
+        byAgent[k].total++;
+        if (s.status==='Câștigată') byAgent[k].won++;
+    });
+    const agArr = Object.values(byAgent).sort((a,b)=>(b.won/b.total)-(a.won/a.total));
+    makeChart('chart-conv-agent','bar', agArr.map(a=>a.name), [{
+        label:'Rată conversie %',
+        data: agArr.map(a=>Math.round(a.won/a.total*100)||0),
+        backgroundColor:'#8B5CF6'
+    }]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R4 — EXPIRATE / LA RISC
+// ═══════════════════════════════════════════════════════════════════════════════
+let expData = { all:[], expired:[], soon:[] };
+
+function renderExpirate(sales) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const in7   = new Date(); in7.setDate(in7.getDate()+7); in7.setHours(23,59,59,999);
+    const active = ['Prospect','Ofertă trimisă','Negociere'];
+
+    expData.all = [];
+    expData.expired = [];
+    expData.soon = [];
+
+    sales.filter(s=>active.includes(s.status) && s.expiryDate).forEach(s => {
+        const exp = new Date(s.expiryDate); exp.setHours(0,0,0,0);
+        const diff = Math.round((exp-today)/(1000*60*60*24));
+        const row = {...s, _diff:diff, _exp:exp};
+        if (exp < today) { expData.expired.push(row); expData.all.push(row); }
+        else if (exp <= in7) { expData.soon.push(row); expData.all.push(row); }
+    });
+
+    el('exp-count').textContent = expData.expired.length;
+    el('exp-soon').textContent  = expData.soon.length;
+    const atRiskVal = expData.all.reduce((a,s)=>a+parseFloat(s.totalWithVat||0),0);
+    el('exp-val').textContent   = fmt(atRiskVal);
+
+    renderExpTable();
+}
+
+function renderExpTable() {
+    const data = expData[expFilter];
+    const STATUS_COLORS = {
+        'Prospect':'bg-gray-100 text-gray-700',
+        'Ofertă trimisă':'bg-blue-100 text-blue-800',
+        'Negociere':'bg-yellow-100 text-yellow-800'
+    };
+    el('tbody-expirate').innerHTML = data.length
+        ? data.sort((a,b)=>a._diff-b._diff).map(s=>`
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-mono text-sm font-semibold text-blue-700">${s.offerNumber||'—'}</td>
+                <td class="px-4 py-3 font-semibold text-gray-800">${s.clientName||'—'}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">${s.agentName||'—'}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[s.status]||''}">${s.status}</span></td>
+                <td class="px-4 py-3 text-right font-bold text-gray-800">${fmt(s.totalWithVat)}</td>
+                <td class="px-4 py-3 text-sm ${s._diff<0?'text-red-600 font-semibold':'text-orange-500 font-semibold'}">${s.expiryDate}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold ${s._diff<0?'bg-red-100 text-red-700':'bg-orange-100 text-orange-700'}">
+                        ${s._diff<0?Math.abs(s._diff)+' zile expirat':s._diff+' zile'}
+                    </span>
+                </td>
+            </tr>`).join('')
+        : `<tr><td colspan="7" class="text-center py-8 text-gray-400">Nu există oferte în această categorie. ✅</td></tr>`;
+}
+
+window.setExpFilter = f => {
+    expFilter = f;
+    ['all','expired','soon'].forEach(x => {
+        const btn = el('exp-btn-'+x);
+        btn.className = `px-3 py-1 text-xs rounded-lg ${x===f?'bg-blue-600 text-white':'border hover:bg-gray-50 text-gray-600'}`;
+    });
+    renderExpTable();
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R5 — PIPELINE PE STATUS
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderPipeline(sales) {
+    const statuses = ['Prospect','Ofertă trimisă','Negociere','Câștigată','Pierdută','Anulată'];
+    const ids = {
+        'Prospect':['pipe-prospect-cnt','pipe-prospect-val'],
+        'Ofertă trimisă':['pipe-sent-cnt','pipe-sent-val'],
+        'Negociere':['pipe-neg-cnt','pipe-neg-val'],
+        'Câștigată':['pipe-won-cnt','pipe-won-val2'],
+        'Pierdută':['pipe-lost-cnt','pipe-lost-val'],
+        'Anulată':['pipe-cancel-cnt','pipe-cancel-val']
+    };
+    const counts={}, vals={};
+    statuses.forEach(s=>{counts[s]=0;vals[s]=0;});
+    sales.forEach(s=>{
+        if (counts[s.status]!==undefined) {
+            counts[s.status]++;
+            vals[s.status]+=parseFloat(s.totalWithVat||0);
+        }
+    });
+    statuses.forEach(s=>{
+        const [cId,vId]=ids[s];
+        el(cId).textContent=counts[s];
+        el(vId).textContent=fmt(vals[s]);
+    });
+
+    const pipeStatuses = ['Prospect','Ofertă trimisă','Negociere','Câștigată'];
+    const pipeColors   = ['#9CA3AF','#3B82F6','#F59E0B','#10B981'];
+    makeChart('chart-pipeline-val','bar', pipeStatuses, [{
+        label:'Valoare (RON)', data:pipeStatuses.map(s=>Math.round(vals[s])),
+        backgroundColor:pipeColors
+    }]);
+    makeChart('chart-pipeline-cnt','doughnut', pipeStatuses, [{
+        data:pipeStatuses.map(s=>counts[s]), backgroundColor:pipeColors
+    }],{legend:true});
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R6 — MOTIVE PIERDERE
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderPierdere(sales) {
+    const lost = sales.filter(s=>s.status==='Pierdută');
+    const byReason = {};
+    lost.forEach(s=>{
+        const r = s.lossReason||'Nespecificat';
+        if (!byReason[r]) byReason[r]={cnt:0,val:0};
+        byReason[r].cnt++;
+        byReason[r].val+=parseFloat(s.totalWithVat||0);
+    });
+    const reasons = Object.entries(byReason).sort((a,b)=>b[1].cnt-a[1].cnt);
+    const labels  = reasons.map(r=>r[0]);
+    const cnts    = reasons.map(r=>r[1].cnt);
+    const vals    = reasons.map(r=>r[1].val);
+    const total   = lost.length;
+
+    makeChart('chart-loss-pie','doughnut', labels, [{
+        data:cnts, backgroundColor:CHART_COLORS.slice(0,labels.length)
+    }],{legend:true});
+    makeChart('chart-loss-val','bar', labels, [{
+        label:'Valoare pierdută (RON)', data:vals.map(v=>Math.round(v)),
+        backgroundColor:CHART_COLORS.slice(0,labels.length)
+    }]);
+
+    el('tbody-pierdere').innerHTML = reasons.length
+        ? reasons.map(([r,d])=>`
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-semibold text-gray-800">${r}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${d.cnt}</td>
+                <td class="px-4 py-3 text-right font-bold text-red-600">${fmt(d.val)}</td>
+                <td class="px-4 py-3 text-right">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                        ${pct(d.cnt,total)}
+                    </span>
+                </td>
+            </tr>`).join('')
+        : `<tr><td colspan="4" class="text-center py-8 text-gray-400">Nu există oferte pierdute în perioada selectată. ✅</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R7 — PERFORMANȚĂ DIRECTORI ZONALI
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderPerformanta(sales) {
+    const dirs = allUsers.filter(u=>u.role==='director_zonal');
+    const agents = allUsers.filter(u=>u.role==='agent');
+
+    const byDir = {};
+    dirs.forEach(d=>{
+        byDir[d.id]={name:d.name||d.email, agentCount:0, total:0, won:0, wonVal:0};
+    });
+    // Număr agenți per director
+    agents.forEach(a=>{
+        if (a.managerId && byDir[a.managerId]) byDir[a.managerId].agentCount++;
+    });
+    // Vânzări per director
+    sales.forEach(s=>{
+        const dId = s.directorZonalId;
+        if (dId && byDir[dId]) {
+            byDir[dId].total++;
+            if (s.status==='Câștigată') { byDir[dId].won++; byDir[dId].wonVal+=parseFloat(s.totalWithVat||0); }
+        }
+    });
+
+    const dirArr = Object.values(byDir).sort((a,b)=>b.wonVal-a.wonVal);
+    const labels = dirArr.map(d=>d.name);
+
+    makeChart('chart-dir-val','bar', labels, [{
+        label:'Valoare câștigată (RON)',
+        data:dirArr.map(d=>Math.round(d.wonVal)),
+        backgroundColor:CHART_COLORS.slice(0,dirArr.length)
+    }]);
+    makeChart('chart-dir-conv','bar', labels, [{
+        label:'Rată conversie %',
+        data:dirArr.map(d=>d.total?Math.round(d.won/d.total*100):0),
+        backgroundColor:'#8B5CF6'
+    }]);
+
+    el('tbody-directori').innerHTML = dirArr.length
+        ? dirArr.map(d=>`
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-semibold text-gray-800">${d.name}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${d.agentCount}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${d.total}</td>
+                <td class="px-4 py-3 text-right text-green-700 font-semibold">${d.won}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(d.wonVal)}</td>
+                <td class="px-4 py-3 text-right">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
+                        ${d.total?Math.round(d.won/d.total*100):0}%
+                    </span>
+                </td>
+            </tr>`).join('')
+        : `<tr><td colspan="6" class="text-center py-8 text-gray-400">Nu există directori zonali în sistem.</td></tr>`;
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────────────────────────
+el('btn-export-csv').onclick = () => {
+    if (!filteredSales.length) { toast('Nu există date de exportat.',false); return; }
+    const h = ['Nr.Ofertă','Client','Status','Agent','Data','Valoare fără TVA','TVA','Total cu TVA','Motiv Pierdere'];
+    const r = filteredSales.map(s=>[
+        s.offerNumber||'',s.clientName||'',s.status||'',s.agentName||'',
+        s.offerDate||'',s.totalNoVat||'',s.vatAmount||'',s.totalWithVat||'',s.lossReason||''
+    ]);
+    const csv = [h,...r].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+    a.download = `raport_${new Date().toLocaleDateString('ro-RO').replace(/\./g,'-')}.csv`;
+    a.click();
+    toast('✅ Export realizat!');
+};
+
+// ── INIT TAB ACTIV ────────────────────────────────────────────────────────────
+window.showTab('vanzari');
+</script>
+</body>
+</html>
