@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migdalin - Rapoarte Avansate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div id="toast" class="hidden fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium"></div>
+
+<!-- HEADER -->
+<header class="bg-gradient-to-r from-indigo-700 to-indigo-900 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='../auth/index.html'"
+                    class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded-lg text-sm">← Înapoi</button>
+            <div>
+                <h1 class="text-xl font-bold">📈 Rapoarte Avansate</h1>
+                <p id="user-info" class="text-indigo-200 text-xs"></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="role-badge" class="px-3 py-1 rounded-full text-sm font-semibold bg-white bg-opacity-20"></span>
+            <button id="btn-export"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow">
+                📥 Export CSV
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- FILTRE GLOBALE -->
+<div class="max-w-7xl mx-auto px-4 py-4">
+    <div class="bg-white rounded-2xl shadow-lg p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">An</label>
+                <select id="filter-year" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm"></select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Trimestru</label>
+                <select id="filter-quarter" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                    <option value="">Tot anul</option>
+                    <option value="1">T1 (Ian–Mar)</option>
+                    <option value="2">T2 (Apr–Iun)</option>
+                    <option value="3">T3 (Iul–Sep)</option>
+                    <option value="4">T4 (Oct–Dec)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Director Regional</label>
+                <select id="filter-dir-reg" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                    <option value="">Toți</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Director Zonal</label>
+                <select id="filter-dir-zon" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 text-sm">
+                    <option value="">Toți</option>
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="applyFilters()"
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    🔍 Aplică
+                </button>
+                <button onclick="resetFilters()"
+                        class="px-4 py-2 border-2 border-gray-300 hover:bg-gray-100 rounded-lg text-sm">✕</button>
+            </div>
+        </div>
+        <!-- Comparatie perioade -->
+        <div class="mt-4 pt-4 border-t">
+            <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Comparație Perioade</p>
+            <div class="flex flex-wrap gap-3 items-end">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Perioadă A — De la</label>
+                    <input id="comp-a-from" type="date" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"/>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Perioadă A — Până la</label>
+                    <input id="comp-a-to" type="date" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"/>
+                </div>
+                <span class="text-gray-400 font-bold self-end pb-2">vs</span>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Perioadă B — De la</label>
+                    <input id="comp-b-from" type="date" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"/>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Perioadă B — Până la</label>
+                    <input id="comp-b-to" type="date" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"/>
+                </div>
+                <button onclick="applyComparison()"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium self-end">
+                    ⚖️ Compară
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
+        <button onclick="showTab('evolutie')"    id="tab-evolutie"    class="tab-btn active-tab px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">📅 Evoluție Timp</button>
+        <button onclick="showTab('comparatie')"  id="tab-comparatie"  class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-white shadow text-gray-600">⚖️ Comparație</button>
+        <button onclick="showTab('judete')"      id="tab-judete"      class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-white shadow text-gray-600">🗺️ Județe</button>
+        <button onclick="showTab('forecast')"    id="tab-forecast"    class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-white shadow text-gray-600">🔮 Forecast</button>
+        <button onclick="showTab('directori')"   id="tab-directori"   class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-white shadow text-gray-600">🏢 Directori Regionali</button>
+        <button onclick="showTab('topClienti')"  id="tab-topClienti"  class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-white shadow text-gray-600">⭐ Top Clienți</button>
+        <button onclick="showTab('prodRegiune')" id="tab-prodRegiune" class="tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-white shadow text-gray-600">📦 Produse/Regiune</button>
+    </div>
+
+    <div id="loading" class="hidden text-center py-16 text-gray-400"><div class="text-5xl mb-3">⏳</div><p>Se încarcă...</p></div>
+
+    <!-- ═══ TAB: EVOLUȚIE ÎN TIMP ═══ -->
+    <div id="tab-content-evolutie" class="tab-content space-y-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-500">
+                <p class="text-xs text-gray-500">Total Oferte (perioadă)</p>
+                <p id="ev-total" class="text-3xl font-bold text-indigo-600 mt-1">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+                <p class="text-xs text-gray-500">Valoare Câștigată</p>
+                <p id="ev-won" class="text-2xl font-bold text-green-600 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-500">
+                <p class="text-xs text-gray-500">Medie Lunară</p>
+                <p id="ev-avg" class="text-2xl font-bold text-yellow-600 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500">
+                <p class="text-xs text-gray-500">Luna cea mai bună</p>
+                <p id="ev-best" class="text-xl font-bold text-purple-600 mt-1">—</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg p-5">
+            <h3 class="font-bold text-gray-800 mb-4">Valoare câștigată lunar (RON)</h3>
+            <canvas id="chart-ev-line" height="120"></canvas>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Nr. oferte pe lună</h3>
+                <canvas id="chart-ev-cnt" height="220"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Valoare pe trimestru (RON)</h3>
+                <canvas id="chart-ev-quarter" height="220"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 class="font-bold text-gray-800">Detalii Lunare</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Lună</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Câștigate</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare Câștigată</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rată Conversie</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">vs Luna Ant.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-evolutie" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: COMPARAȚIE PERIOADE ═══ -->
+    <div id="tab-content-comparatie" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Perioada A -->
+            <div class="bg-white rounded-2xl shadow-lg p-5 border-t-4 border-blue-500">
+                <h3 class="font-bold text-blue-700 mb-4">📘 Perioadă A</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Total oferte</span><span id="ca-total" class="font-bold">0</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Câștigate</span><span id="ca-won" class="font-bold text-green-600">0</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Pierdute</span><span id="ca-lost" class="font-bold text-red-600">0</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Valoare câștigată</span><span id="ca-val" class="font-bold text-green-600">0 RON</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Rată conversie</span><span id="ca-rate" class="font-bold text-purple-600">0%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Valoare medie ofertă</span><span id="ca-avg" class="font-bold">0 RON</span></div>
+                </div>
+            </div>
+            <!-- Perioada B -->
+            <div class="bg-white rounded-2xl shadow-lg p-5 border-t-4 border-orange-500">
+                <h3 class="font-bold text-orange-700 mb-4">📙 Perioadă B</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Total oferte</span><span id="cb-total" class="font-bold">0</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Câștigate</span><span id="cb-won" class="font-bold text-green-600">0</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Pierdute</span><span id="cb-lost" class="font-bold text-red-600">0</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Valoare câștigată</span><span id="cb-val" class="font-bold text-green-600">0 RON</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Rată conversie</span><span id="cb-rate" class="font-bold text-purple-600">0%</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500 text-sm">Valoare medie ofertă</span><span id="cb-avg" class="font-bold">0 RON</span></div>
+                </div>
+            </div>
+        </div>
+        <!-- Delta -->
+        <div class="bg-white rounded-2xl shadow-lg p-5">
+            <h3 class="font-bold text-gray-800 mb-4">Diferențe A vs B</h3>
+            <div id="comp-delta" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg p-5">
+            <h3 class="font-bold text-gray-800 mb-4">Comparație vizuală</h3>
+            <canvas id="chart-comp" height="120"></canvas>
+        </div>
+        <div id="comp-hint" class="text-center py-8 text-gray-400">
+            <p>Setează cele două perioade în filtrele de mai sus și apasă <strong>⚖️ Compară</strong>.</p>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: JUDEȚE ═══ -->
+    <div id="tab-content-judete" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Top județe — Valoare vânzări (RON)</h3>
+                <canvas id="chart-judete-val" height="300"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Top județe — Nr. clienți</h3>
+                <canvas id="chart-judete-cli" height="300"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 class="font-bold text-gray-800">Detalii pe Județ</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Județ</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Nr. Clienți</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Nr. Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Câștigate</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare Câștigată</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Rată Conversie</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-judete" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: FORECAST ═══ -->
+    <div id="tab-content-forecast" class="tab-content hidden space-y-6">
+        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-700">
+            <strong>Metodologie:</strong> Forecastul folosește media mobilă pe ultimele 3 luni pentru a estima valorile viitoare. Cu cât există mai multe date istorice, cu atât estimarea este mai precisă.
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-500">
+                <p class="text-xs text-gray-500">Medie ultimele 3 luni</p>
+                <p id="fc-avg3" class="text-2xl font-bold text-indigo-600 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+                <p class="text-xs text-gray-500">Forecast luna viitoare</p>
+                <p id="fc-next1" class="text-2xl font-bold text-green-600 mt-1">0 RON</p>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+                <p class="text-xs text-gray-500">Forecast trimestru următor</p>
+                <p id="fc-next3" class="text-2xl font-bold text-blue-600 mt-1">0 RON</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg p-5">
+            <h3 class="font-bold text-gray-800 mb-4">Evoluție istorică + Forecast (linie punctată)</h3>
+            <canvas id="chart-forecast" height="130"></canvas>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 class="font-bold text-gray-800">Forecast Detaliat — Următoarele 6 luni</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Lună</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Forecast Valoare</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Forecast Nr. Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Interval Minim</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Interval Maxim</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-forecast" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: DIRECTORI REGIONALI ═══ -->
+    <div id="tab-content-directori" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Valoare câștigată pe Director Regional (RON)</h3>
+                <canvas id="chart-reg-val" height="250"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Rată conversie pe Director Regional (%)</h3>
+                <canvas id="chart-reg-conv" height="250"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 class="font-bold text-gray-800">Raport Consolidat — Directori Regionali</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Director Regional</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Dir. Zonali</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Agenți</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Câștigate</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Conversie</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-reg" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+        <!-- Drill-down directori zonali -->
+        <div id="drilldown-wrap" class="hidden bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center">
+                <h3 id="drilldown-title" class="font-bold text-gray-800">Directori Zonali</h3>
+                <button onclick="closeDrilldown()" class="text-gray-400 hover:text-gray-600 text-sm">✕ Închide</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Director Zonal</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Agenți</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Câștigate</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Conversie</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-drilldown" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: TOP CLIENȚI ═══ -->
+    <div id="tab-content-topClienti" class="tab-content hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Top 10 Clienți — Valoare cumpărată (RON)</h3>
+                <canvas id="chart-cli-val" height="300"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Top 10 Clienți — Nr. oferte câștigate</h3>
+                <canvas id="chart-cli-cnt" height="300"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center">
+                <h3 class="font-bold text-gray-800">Toți Clienții — Detalii Vânzări</h3>
+                <div class="flex gap-2">
+                    <button onclick="sortClients('val')"  id="sort-val" class="px-3 py-1 text-xs rounded-lg bg-indigo-600 text-white">↓ Valoare</button>
+                    <button onclick="sortClients('cnt')"  id="sort-cnt" class="px-3 py-1 text-xs rounded-lg border text-gray-600 hover:bg-gray-50">↓ Nr. Oferte</button>
+                    <button onclick="sortClients('rate')" id="sort-rate" class="px-3 py-1 text-xs rounded-lg border text-gray-600 hover:bg-gray-50">↓ Conversie</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Client</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total Oferte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Câștigate</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare Totală</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Conversie</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-cli" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: PRODUSE PE REGIUNE/AGENT ═══ -->
+    <div id="tab-content-prodRegiune" class="tab-content hidden space-y-6">
+        <div class="flex gap-3 mb-2">
+            <button onclick="setProdView('regiune')" id="pv-reg" class="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white font-medium">Per Județ</button>
+            <button onclick="setProdView('agent')"   id="pv-age" class="px-4 py-2 text-sm rounded-lg border text-gray-600 hover:bg-gray-50 font-medium">Per Agent</button>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 id="pr-chart-title" class="font-bold text-gray-800 mb-4">Top produse per județ</h3>
+                <canvas id="chart-pr-main" height="300"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-5">
+                <h3 class="font-bold text-gray-800 mb-4">Distribuție valoare produse</h3>
+                <canvas id="chart-pr-pie" height="300"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="p-5 border-b"><h3 id="pr-table-title" class="font-bold text-gray-800">Produse per Județ</h3></div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Județ / Agent</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Top Produs</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Nr. Produse Distincte</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Cantitate Totală</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Valoare (fără TVA)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-pr" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged }
+                             from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc }
+                             from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAgPHpBzoZb2sUvSkG-0PSf8wxxaY_JJQE",
+    authDomain: "crm-migdalin.firebaseapp.com",
+    projectId: "crm-migdalin",
+    storageBucket: "crm-migdalin.firebasestorage.app",
+    messagingSenderId: "498188629124",
+    appId: "1:498188629124:web:b0cf5d5585d2cd4af3fed1"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ROLES = {
+    admin:{level:99,label:'Administrator'}, presedinte:{level:6,label:'Președinte'},
+    director_general:{level:5,label:'Director General'}, director_regional:{level:4,label:'Director Regional'},
+    director_zonal:{level:3,label:'Director Zonal'}, agent:{level:2,label:'Agent Vânzări'}
+};
+const MONTHS_RO = ['Ian','Feb','Mar','Apr','Mai','Iun','Iul','Aug','Sep','Oct','Nov','Dec'];
+const COLORS = ['#6366F1','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#F97316','#84CC16','#EC4899','#3B82F6'];
+
+let currentUser=null, currentUserData=null, userLevel=0;
+let allSales=[], allClients=[], allUsers=[];
+let filteredSales=[], clientsMap={};
+let activeTab='evolutie', clientSortKey='val', prodView='regiune';
+const charts={};
+
+const el    = id => document.getElementById(id);
+const fmt   = n  => parseFloat(n||0).toLocaleString('ro-RO',{maximumFractionDigits:0})+' RON';
+const pct   = (a,b)=> b?Math.round(a/b*100)+'%':'0%';
+const toast = (msg,ok=true)=>{
+    const t=el('toast'); t.textContent=msg;
+    t.className=`fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-medium ${ok?'bg-green-600':'bg-red-600'}`;
+    t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),3500);
+};
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user=>{
+    if(!user){window.location.href='../auth/index.html';return;}
+    currentUser=user;
+    const snap=await getDoc(doc(db,'users',user.uid));
+    if(!snap.exists()){window.location.href='../auth/index.html';return;}
+    currentUserData=snap.data();
+    userLevel=ROLES[currentUserData.role]?.level||0;
+    // Redirect dacă nivel insuficient
+    if(userLevel<4){window.location.href='../auth/index.html';return;}
+    el('user-info').textContent=currentUserData.name+' · '+currentUserData.email;
+    el('role-badge').textContent=ROLES[currentUserData.role]?.label||'';
+
+    initYearFilter();
+    el('loading').classList.remove('hidden');
+    await Promise.all([loadSales(), loadClients(), loadUsers()]);
+    el('loading').classList.add('hidden');
+    populateDirFilters();
+    applyFilters();
+});
+
+function initYearFilter(){
+    const sel=el('filter-year');
+    const y=new Date().getFullYear();
+    for(let i=y;i>=y-4;i--){
+        const o=document.createElement('option');
+        o.value=i; o.textContent=i; if(i===y) o.selected=true;
+        sel.appendChild(o);
+    }
+}
+
+// ── LOAD DATA ─────────────────────────────────────────────────────────────────
+async function loadSales(){
+    const q=query(collection(db,'sales'),orderBy('createdAt','desc'));
+    const snap=await getDocs(q);
+    allSales=[]; snap.forEach(d=>allSales.push({id:d.id,...d.data()}));
+}
+async function loadClients(){
+    const q=query(collection(db,'clients'),orderBy('companyName'));
+    const snap=await getDocs(q);
+    allClients=[]; clientsMap={};
+    snap.forEach(d=>{const c={id:d.id,...d.data()}; allClients.push(c); clientsMap[d.id]=c;});
+}
+async function loadUsers(){
+    const snap=await getDocs(collection(db,'users'));
+    allUsers=[]; snap.forEach(d=>allUsers.push({id:d.id,...d.data()}));
+}
+
+function populateDirFilters(){
+    const regs=allUsers.filter(u=>u.role==='director_regional');
+    const zons=allUsers.filter(u=>u.role==='director_zonal');
+    const selR=el('filter-dir-reg'), selZ=el('filter-dir-zon');
+    regs.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name||u.email;selR.appendChild(o);});
+    zons.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name||u.email;selZ.appendChild(o);});
+}
+
+// ── FILTRE ────────────────────────────────────────────────────────────────────
+window.applyFilters=()=>{
+    const year=parseInt(el('filter-year').value);
+    const quarter=parseInt(el('filter-quarter').value)||0;
+    const dirZ=el('filter-dir-zon').value;
+
+    filteredSales=allSales.filter(s=>{
+        const d=s.offerDate||(s.createdAt?.seconds?new Date(s.createdAt.seconds*1000).toISOString().split('T')[0]:'');
+        if(!d) return false;
+        const dt=new Date(d);
+        const mYear=dt.getFullYear()===year;
+        const mQ=!quarter||Math.ceil((dt.getMonth()+1)/3)===quarter;
+        const mDZ=!dirZ||s.directorZonalId===dirZ;
+        return mYear&&mQ&&mDZ;
+    });
+    renderActiveTab();
+};
+window.resetFilters=()=>{
+    el('filter-year').value=new Date().getFullYear();
+    el('filter-quarter').value='';
+    el('filter-dir-reg').value='';
+    el('filter-dir-zon').value='';
+    applyFilters();
+};
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+window.showTab=tab=>{
+    activeTab=tab;
+    document.querySelectorAll('.tab-content').forEach(e=>e.classList.add('hidden'));
+    el('tab-content-'+tab).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+        b.className='tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-white shadow text-gray-600';
+    });
+    const btn=el('tab-'+tab);
+    btn.className='tab-btn px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap bg-indigo-600 text-white';
+    renderActiveTab();
+};
+
+function renderActiveTab(){
+    switch(activeTab){
+        case 'evolutie':    renderEvolutie(filteredSales);    break;
+        case 'judete':      renderJudete(filteredSales);      break;
+        case 'forecast':    renderForecast();                  break;
+        case 'directori':   renderDirectori(filteredSales);   break;
+        case 'topClienti':  renderTopClienti(filteredSales);  break;
+        case 'prodRegiune': renderProdRegiune(filteredSales); break;
+        case 'comparatie':  break; // declanșat manual
+    }
+}
+
+function makeChart(id,type,labels,datasets,opts={}){
+    if(charts[id]) charts[id].destroy();
+    const ctx=el(id)?.getContext('2d'); if(!ctx) return;
+    charts[id]=new Chart(ctx,{type,data:{labels,datasets},
+        options:{responsive:true,plugins:{legend:{display:opts.legend??false}},...(opts.extra||{})}});
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R1 — EVOLUȚIE ÎN TIMP
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderEvolutie(sales){
+    // Grupare lunară
+    const byMonth={};
+    sales.forEach(s=>{
+        const d=s.offerDate||(s.createdAt?.seconds?new Date(s.createdAt.seconds*1000).toISOString().split('T')[0]:'');
+        if(!d) return;
+        const dt=new Date(d);
+        const k=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+        if(!byMonth[k]) byMonth[k]={label:`${MONTHS_RO[dt.getMonth()]} ${dt.getFullYear()}`,total:0,won:0,wonVal:0};
+        byMonth[k].total++;
+        if(s.status==='Câștigată'){byMonth[k].won++;byMonth[k].wonVal+=parseFloat(s.totalWithVat||0);}
+    });
+    const months=Object.keys(byMonth).sort();
+    const data=months.map(k=>byMonth[k]);
+
+    // KPI
+    const totalWon=data.reduce((a,m)=>a+m.wonVal,0);
+    const avgM=data.length?totalWon/data.length:0;
+    const bestM=data.reduce((best,m)=>m.wonVal>best.wonVal?m:best,{wonVal:0,label:'—'});
+    el('ev-total').textContent=sales.length;
+    el('ev-won').textContent=fmt(totalWon);
+    el('ev-avg').textContent=fmt(avgM);
+    el('ev-best').textContent=bestM.label;
+
+    // Grafic linie valoare
+    makeChart('chart-ev-line','line',data.map(m=>m.label),[{
+        label:'Valoare câștigată (RON)',
+        data:data.map(m=>Math.round(m.wonVal)),
+        borderColor:'#6366F1',backgroundColor:'rgba(99,102,241,0.1)',
+        tension:0.4,fill:true,pointRadius:4
+    }],{extra:{scales:{y:{beginAtZero:true}}}});
+
+    // Grafic bar nr oferte
+    makeChart('chart-ev-cnt','bar',data.map(m=>m.label),[
+        {label:'Total',data:data.map(m=>m.total),backgroundColor:'#C7D2FE'},
+        {label:'Câștigate',data:data.map(m=>m.won),backgroundColor:'#6366F1'}
+    ],{legend:true});
+
+    // Trimestrial
+    const byQ={};
+    sales.forEach(s=>{
+        const d=s.offerDate||(s.createdAt?.seconds?new Date(s.createdAt.seconds*1000).toISOString().split('T')[0]:'');
+        if(!d) return;
+        const dt=new Date(d);
+        const q=`T${Math.ceil((dt.getMonth()+1)/3)} ${dt.getFullYear()}`;
+        if(!byQ[q]) byQ[q]=0;
+        if(s.status==='Câștigată') byQ[q]+=parseFloat(s.totalWithVat||0);
+    });
+    const qKeys=Object.keys(byQ).sort();
+    makeChart('chart-ev-quarter','bar',qKeys,[{
+        label:'Valoare câștigată',data:qKeys.map(k=>Math.round(byQ[k])),
+        backgroundColor:COLORS.slice(0,qKeys.length)
+    }]);
+
+    // Tabel
+    el('tbody-evolutie').innerHTML=data.length
+        ?data.map((m,i)=>{
+            const prev=i>0?data[i-1].wonVal:null;
+            const diff=prev!==null?Math.round(m.wonVal-prev):null;
+            const arrow=diff===null?'—':diff>0?`<span class="text-green-600">▲ ${fmt(diff)}</span>`
+                        :diff<0?`<span class="text-red-600">▼ ${fmt(Math.abs(diff))}</span>`
+                        :'<span class="text-gray-400">—</span>';
+            return`<tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-semibold text-gray-800">${m.label}</td>
+                <td class="px-4 py-3 text-right">${m.total}</td>
+                <td class="px-4 py-3 text-right text-green-700">${m.won}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(m.wonVal)}</td>
+                <td class="px-4 py-3 text-right"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">${pct(m.won,m.total)}</span></td>
+                <td class="px-4 py-3 text-right text-sm">${arrow}</td>
+            </tr>`;
+        }).join('')
+        :`<tr><td colspan="6" class="text-center py-8 text-gray-400">Nu există date în perioada selectată.</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R2 — COMPARAȚIE PERIOADE
+// ═══════════════════════════════════════════════════════════════════════════════
+window.applyComparison=()=>{
+    const aFrom=el('comp-a-from').value, aTo=el('comp-a-to').value;
+    const bFrom=el('comp-b-from').value, bTo=el('comp-b-to').value;
+    if(!aFrom||!aTo||!bFrom||!bTo){toast('Completați toate cele 4 date pentru comparație.',false);return;}
+
+    const filterPeriod=(from,to)=>allSales.filter(s=>{
+        const d=s.offerDate||(s.createdAt?.seconds?new Date(s.createdAt.seconds*1000).toISOString().split('T')[0]:'');
+        return d>=from&&d<=to;
+    });
+    const calcStats=arr=>({
+        total:arr.length,
+        won:arr.filter(s=>s.status==='Câștigată').length,
+        lost:arr.filter(s=>s.status==='Pierdută').length,
+        val:arr.filter(s=>s.status==='Câștigată').reduce((a,s)=>a+parseFloat(s.totalWithVat||0),0),
+        avg:arr.length?arr.filter(s=>s.status==='Câștigată').reduce((a,s)=>a+parseFloat(s.totalWithVat||0),0)/arr.length:0
+    });
+
+    const A=calcStats(filterPeriod(aFrom,aTo));
+    const B=calcStats(filterPeriod(bFrom,bTo));
+
+    const setP=(prefix,s)=>{
+        el(prefix+'-total').textContent=s.total;
+        el(prefix+'-won').textContent=s.won;
+        el(prefix+'-lost').textContent=s.lost;
+        el(prefix+'-val').textContent=fmt(s.val);
+        el(prefix+'-rate').textContent=pct(s.won,s.total);
+        el(prefix+'-avg').textContent=fmt(s.avg);
+    };
+    setP('ca',A); setP('cb',B);
+
+    // Delta
+    const delta=[
+        {label:'Total Oferte',a:A.total,b:B.total,fmt:v=>v},
+        {label:'Câștigate',a:A.won,b:B.won,fmt:v=>v},
+        {label:'Valoare Câștigată',a:A.val,b:B.val,fmt:v=>fmt(v)},
+        {label:'Rată Conversie',a:A.won/A.total*100||0,b:B.won/B.total*100||0,fmt:v=>Math.round(v)+'%'}
+    ];
+    el('comp-delta').innerHTML=delta.map(d=>{
+        const diff=d.a-d.b; const posi=diff>=0;
+        return`<div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs text-gray-500 mb-1">${d.label}</p>
+            <p class="text-lg font-bold ${posi?'text-green-600':'text-red-600'}">${posi?'▲':'▼'} ${d.fmt(Math.abs(diff))}</p>
+            <p class="text-xs text-gray-400 mt-1">A: ${d.fmt(d.a)} · B: ${d.fmt(d.b)}</p>
+        </div>`;
+    }).join('');
+
+    makeChart('chart-comp','bar',
+        ['Total Oferte','Câștigate','Pierdute'],
+        [
+            {label:`A (${aFrom} – ${aTo})`,data:[A.total,A.won,A.lost],backgroundColor:'#6366F1'},
+            {label:`B (${bFrom} – ${bTo})`,data:[B.total,B.won,B.lost],backgroundColor:'#F97316'}
+        ],{legend:true}
+    );
+    el('comp-hint').classList.add('hidden');
+    showTab('comparatie');
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R3 — JUDEȚE
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderJudete(sales){
+    // Câștigate cu info client (județ din clients map)
+    const byJudet={};
+    sales.forEach(s=>{
+        const c=clientsMap[s.clientId];
+        const judet=c?.county||'Necunoscut';
+        if(!byJudet[judet]) byJudet[judet]={judet,clients:new Set(),total:0,won:0,wonVal:0};
+        byJudet[judet].total++;
+        if(c) byJudet[judet].clients.add(s.clientId);
+        if(s.status==='Câștigată') {byJudet[judet].won++;byJudet[judet].wonVal+=parseFloat(s.totalWithVat||0);}
+    });
+    const judete=Object.values(byJudet).sort((a,b)=>b.wonVal-a.wonVal);
+    const top10=judete.slice(0,10);
+
+    makeChart('chart-judete-val','bar',top10.map(j=>j.judet),[{
+        label:'Valoare (RON)',data:top10.map(j=>Math.round(j.wonVal)),
+        backgroundColor:COLORS.slice(0,top10.length)
+    }],{extra:{indexAxis:'y'}});
+    makeChart('chart-judete-cli','bar',top10.map(j=>j.judet),[{
+        label:'Nr. Clienți',data:top10.map(j=>j.clients.size),
+        backgroundColor:'#10B981'
+    }],{extra:{indexAxis:'y'}});
+
+    el('tbody-judete').innerHTML=judete.length
+        ?judete.map((j,i)=>`
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-gray-400 text-sm">${i+1}</td>
+                <td class="px-4 py-3 font-semibold text-gray-800">${j.judet}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${j.clients.size}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${j.total}</td>
+                <td class="px-4 py-3 text-right text-green-700">${j.won}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(j.wonVal)}</td>
+                <td class="px-4 py-3 text-right"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">${pct(j.won,j.total)}</span></td>
+            </tr>`).join('')
+        :`<tr><td colspan="7" class="text-center py-8 text-gray-400">Nu există date.</td></tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R4 — FORECAST (medie mobilă 3 luni)
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderForecast(){
+    // Date istorice — ultimele 12 luni din TOATE vânzările
+    const byMonth={};
+    allSales.forEach(s=>{
+        const d=s.offerDate||(s.createdAt?.seconds?new Date(s.createdAt.seconds*1000).toISOString().split('T')[0]:'');
+        if(!d) return;
+        const dt=new Date(d);
+        const k=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+        if(!byMonth[k]) byMonth[k]={wonVal:0,total:0,won:0};
+        byMonth[k].total++;
+        if(s.status==='Câștigată'){byMonth[k].wonVal+=parseFloat(s.totalWithVat||0);byMonth[k].won++;}
+    });
+
+    const now=new Date();
+    const hist=[];
+    for(let i=11;i>=0;i--){
+        const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+        const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        hist.push({
+            label:`${MONTHS_RO[d.getMonth()]} ${d.getFullYear()}`,
+            wonVal:byMonth[k]?.wonVal||0,
+            total:byMonth[k]?.total||0,
+            won:byMonth[k]?.won||0,
+            dt:d
+        });
+    }
+
+    // Medie mobilă 3 luni
+    const ma3=(arr,i)=>{
+        if(i<2) return null;
+        return (arr[i].wonVal+arr[i-1].wonVal+arr[i-2].wonVal)/3;
+    };
+    const lastMA=ma3(hist,11)??hist[hist.length-1].wonVal;
+    const lastCnt=hist.slice(-3).reduce((a,m)=>a+m.total,0)/3;
+    const lastWon=hist.slice(-3).reduce((a,m)=>a+m.won,0)/3;
+    const std=Math.sqrt(hist.slice(-3).reduce((a,m)=>a+Math.pow(m.wonVal-lastMA,2),0)/3);
+
+    el('fc-avg3').textContent=fmt(lastMA);
+    el('fc-next1').textContent=fmt(lastMA);
+    el('fc-next3').textContent=fmt(lastMA*3);
+
+    // Forecast 6 luni
+    const fcLabels=[], fcVals=[];
+    for(let i=1;i<=6;i++){
+        const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+        fcLabels.push(`${MONTHS_RO[d.getMonth()]} ${d.getFullYear()}`);
+        fcVals.push(Math.round(lastMA));
+    }
+
+    // Grafic combinat
+    const histLabels=hist.map(m=>m.label);
+    const histVals=hist.map(m=>Math.round(m.wonVal));
+    const allLabels=[...histLabels,...fcLabels];
+
+    const fcDataset=new Array(12).fill(null).concat(fcVals);
+    // Punct de legătură
+    fcDataset[11]=histVals[11];
+
+    makeChart('chart-forecast','line',allLabels,[
+        {
+            label:'Istoric',
+            data:[...histVals,...new Array(6).fill(null)],
+            borderColor:'#6366F1',backgroundColor:'rgba(99,102,241,0.08)',
+            tension:0.4,fill:true,pointRadius:3
+        },
+        {
+            label:'Forecast (medie mobilă 3L)',
+            data:fcDataset,
+            borderColor:'#10B981',backgroundColor:'rgba(16,185,129,0.08)',
+            borderDash:[6,3],tension:0.3,pointRadius:4,
+            pointBackgroundColor:'#10B981'
+        }
+    ],{legend:true,extra:{scales:{y:{beginAtZero:true}}}});
+
+    // Tabel forecast
+    el('tbody-forecast').innerHTML=fcLabels.map((l,i)=>`
+        <tr class="hover:bg-gray-50 bg-green-50">
+            <td class="px-4 py-3 font-semibold text-gray-700">🔮 ${l}</td>
+            <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(lastMA)}</td>
+            <td class="px-4 py-3 text-right text-gray-600">${Math.round(lastCnt)}</td>
+            <td class="px-4 py-3 text-right text-gray-500">${fmt(lastMA-std)}</td>
+            <td class="px-4 py-3 text-right text-gray-500">${fmt(lastMA+std)}</td>
+        </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R5 — DIRECTORI REGIONALI
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderDirectori(sales){
+    const regs=allUsers.filter(u=>u.role==='director_regional');
+    const zons=allUsers.filter(u=>u.role==='director_zonal');
+    const agts=allUsers.filter(u=>u.role==='agent');
+
+    // Map: director_regional → director_zonal (via managerId pe zonal)
+    // Presupunând că dir zonal are managerId = dir regional
+    const zonByReg={};
+    zons.forEach(z=>{ const r=z.managerId||'_'; if(!zonByReg[r]) zonByReg[r]=[]; zonByReg[r].push(z.id); });
+    const agtByZon={};
+    agts.forEach(a=>{ const z=a.managerId||'_'; if(!agtByZon[z]) agtByZon[z]=[]; agtByZon[z].push(a.id); });
+
+    // Vânzări per director zonal
+    const salesByZon={};
+    sales.forEach(s=>{
+        const z=s.directorZonalId||'_';
+        if(!salesByZon[z]) salesByZon[z]={total:0,won:0,wonVal:0};
+        salesByZon[z].total++;
+        if(s.status==='Câștigată'){salesByZon[z].won++;salesByZon[z].wonVal+=parseFloat(s.totalWithVat||0);}
+    });
+
+    // Consolidare per regional
+    const regData=regs.map(r=>{
+        const myZons=zonByReg[r.id]||[];
+        const myAgts=myZons.flatMap(z=>agtByZon[z]||[]);
+        const totals=myZons.reduce((acc,z)=>{
+            const s=salesByZon[z]||{total:0,won:0,wonVal:0};
+            acc.total+=s.total; acc.won+=s.won; acc.wonVal+=s.wonVal; return acc;
+        },{total:0,won:0,wonVal:0});
+        return{id:r.id,name:r.name||r.email,zonCount:myZons.length,agtCount:myAgts.length,...totals};
+    }).sort((a,b)=>b.wonVal-a.wonVal);
+
+    makeChart('chart-reg-val','bar',regData.map(r=>r.name),[{
+        label:'Valoare (RON)',data:regData.map(r=>Math.round(r.wonVal)),
+        backgroundColor:COLORS.slice(0,regData.length)
+    }]);
+    makeChart('chart-reg-conv','bar',regData.map(r=>r.name),[{
+        label:'Conversie %',data:regData.map(r=>r.total?Math.round(r.won/r.total*100):0),
+        backgroundColor:'#8B5CF6'
+    }]);
+
+    el('tbody-reg').innerHTML=regData.length
+        ?regData.map(r=>`
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="drilldownReg('${r.id}','${r.name.replace(/'/g,"\\'")}')">
+                <td class="px-4 py-3 font-semibold text-indigo-700 underline">${r.name} 🔍</td>
+                <td class="px-4 py-3 text-right">${r.zonCount}</td>
+                <td class="px-4 py-3 text-right">${r.agtCount}</td>
+                <td class="px-4 py-3 text-right">${r.total}</td>
+                <td class="px-4 py-3 text-right text-green-700">${r.won}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(r.wonVal)}</td>
+                <td class="px-4 py-3 text-right"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">${pct(r.won,r.total)}</span></td>
+            </tr>`).join('')
+        :`<tr><td colspan="7" class="text-center py-8 text-gray-400">Nu există directori regionali în sistem.</td></tr>`;
+}
+
+window.drilldownReg=(regId,regName)=>{
+    const zons=allUsers.filter(u=>u.role==='director_zonal'&&u.managerId===regId);
+    const agts=allUsers.filter(u=>u.role==='agent');
+    el('drilldown-title').textContent=`Directori Zonali sub: ${regName}`;
+
+    const zonData=zons.map(z=>{
+        const myAgts=agts.filter(a=>a.managerId===z.id);
+        const s=filteredSales.filter(s=>s.directorZonalId===z.id);
+        const won=s.filter(x=>x.status==='Câștigată');
+        return{name:z.name||z.email,agtCount:myAgts.length,total:s.length,
+               won:won.length,wonVal:won.reduce((a,x)=>a+parseFloat(x.totalWithVat||0),0)};
+    }).sort((a,b)=>b.wonVal-a.wonVal);
+
+    el('tbody-drilldown').innerHTML=zonData.length
+        ?zonData.map(z=>`
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-semibold text-gray-800">${z.name}</td>
+                <td class="px-4 py-3 text-right">${z.agtCount}</td>
+                <td class="px-4 py-3 text-right">${z.total}</td>
+                <td class="px-4 py-3 text-right text-green-700">${z.won}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(z.wonVal)}</td>
+                <td class="px-4 py-3 text-right"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">${pct(z.won,z.total)}</span></td>
+            </tr>`).join('')
+        :`<tr><td colspan="6" class="text-center py-6 text-gray-400">Nu există directori zonali sub acest director.</td></tr>`;
+
+    el('drilldown-wrap').classList.remove('hidden');
+    el('drilldown-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+};
+window.closeDrilldown=()=>el('drilldown-wrap').classList.add('hidden');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R6 — TOP CLIENȚI
+// ═══════════════════════════════════════════════════════════════════════════════
+let clientsData=[];
+function renderTopClienti(sales){
+    const byCli={};
+    sales.forEach(s=>{
+        const k=s.clientId||'_';
+        if(!byCli[k]) byCli[k]={name:s.clientName||'Necunoscut',agent:s.agentName||'—',total:0,won:0,wonVal:0};
+        byCli[k].total++;
+        if(s.status==='Câștigată'){byCli[k].won++;byCli[k].wonVal+=parseFloat(s.totalWithVat||0);}
+    });
+    clientsData=Object.values(byCli);
+    sortClients(clientSortKey);
+}
+
+window.sortClients=key=>{
+    clientSortKey=key;
+    ['val','cnt','rate'].forEach(k=>{
+        const btn=el('sort-'+k);
+        btn.className=`px-3 py-1 text-xs rounded-lg ${k===key?'bg-indigo-600 text-white':'border text-gray-600 hover:bg-gray-50'}`;
+    });
+    const sorted=[...clientsData].sort((a,b)=>{
+        if(key==='val') return b.wonVal-a.wonVal;
+        if(key==='cnt') return b.total-a.total;
+        return (b.won/b.total||0)-(a.won/a.total||0);
+    });
+    const top10=sorted.slice(0,10);
+    makeChart('chart-cli-val','bar',top10.map(c=>c.name.length>18?c.name.slice(0,16)+'…':c.name),[{
+        label:'Valoare (RON)',data:top10.map(c=>Math.round(c.wonVal)),
+        backgroundColor:COLORS.slice(0,top10.length)
+    }],{extra:{indexAxis:'y'}});
+    makeChart('chart-cli-cnt','bar',top10.map(c=>c.name.length>18?c.name.slice(0,16)+'…':c.name),[{
+        label:'Nr. oferte câștigate',data:top10.map(c=>c.won),backgroundColor:'#F59E0B'
+    }],{extra:{indexAxis:'y'}});
+
+    el('tbody-cli').innerHTML=sorted.length
+        ?sorted.map((c,i)=>`
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-gray-400 text-sm">${i+1}</td>
+                <td class="px-4 py-3 font-semibold text-gray-800">${c.name}</td>
+                <td class="px-4 py-3 text-sm text-gray-600">${c.agent}</td>
+                <td class="px-4 py-3 text-right">${c.total}</td>
+                <td class="px-4 py-3 text-right text-green-700">${c.won}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(c.wonVal)}</td>
+                <td class="px-4 py-3 text-right"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">${pct(c.won,c.total)}</span></td>
+            </tr>`).join('')
+        :`<tr><td colspan="7" class="text-center py-8 text-gray-400">Nu există date.</td></tr>`;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// R7 — PRODUSE PER REGIUNE / AGENT
+// ═══════════════════════════════════════════════════════════════════════════════
+window.setProdView=v=>{
+    prodView=v;
+    el('pv-reg').className=`px-4 py-2 text-sm rounded-lg font-medium ${v==='regiune'?'bg-indigo-600 text-white':'border text-gray-600 hover:bg-gray-50'}`;
+    el('pv-age').className=`px-4 py-2 text-sm rounded-lg font-medium ${v==='agent'?'bg-indigo-600 text-white':'border text-gray-600 hover:bg-gray-50'}`;
+    renderProdRegiune(filteredSales);
+};
+
+function renderProdRegiune(sales){
+    const wonSales=sales.filter(s=>s.status==='Câștigată');
+    const byKey={};
+    wonSales.forEach(s=>{
+        const c=clientsMap[s.clientId];
+        const key=prodView==='regiune'?(c?.county||'Necunoscut'):(s.agentName||'Necunoscut');
+        if(!byKey[key]) byKey[key]={key,prods:{},qty:0,val:0};
+        (s.lines||[]).forEach(l=>{
+            const n=(l.name||'—').trim();
+            const v=l.price*l.qty*(1-(l.discount||0)/100);
+            if(!byKey[key].prods[n]) byKey[key].prods[n]=0;
+            byKey[key].prods[n]+=v;
+            byKey[key].qty+=parseFloat(l.qty||0);
+            byKey[key].val+=v;
+        });
+    });
+
+    const rows=Object.values(byKey).sort((a,b)=>b.val-a.val);
+    const top10=rows.slice(0,10);
+    const title=prodView==='regiune'?'Per Județ':'Per Agent';
+    el('pr-chart-title').textContent=`Top produse ${title.toLowerCase()}`;
+    el('pr-table-title').textContent=`Produse ${title}`;
+
+    makeChart('chart-pr-main','bar',top10.map(r=>r.key),[{
+        label:'Valoare (RON)',data:top10.map(r=>Math.round(r.val)),
+        backgroundColor:COLORS.slice(0,top10.length)
+    }]);
+    makeChart('chart-pr-pie','doughnut',top10.map(r=>r.key),[{
+        data:top10.map(r=>Math.round(r.val)),backgroundColor:COLORS.slice(0,top10.length)
+    }],{legend:true});
+
+    el('tbody-pr').innerHTML=rows.length
+        ?rows.map(r=>{
+            const topProd=Object.entries(r.prods).sort((a,b)=>b[1]-a[1])[0];
+            return`<tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-semibold text-gray-800">${r.key}</td>
+                <td class="px-4 py-3 text-sm text-indigo-700 font-medium">${topProd?topProd[0]:'—'}</td>
+                <td class="px-4 py-3 text-right">${Object.keys(r.prods).length}</td>
+                <td class="px-4 py-3 text-right text-gray-700">${Math.round(r.qty*100)/100}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${fmt(r.val)}</td>
+            </tr>`;
+        }).join('')
+        :`<tr><td colspan="5" class="text-center py-8 text-gray-400">Nu există date.</td></tr>`;
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+el('btn-export').onclick=()=>{
+    if(!filteredSales.length){toast('Nu există date.',false);return;}
+    const h=['Nr.Ofertă','Client','Status','Agent','Data','Total cu TVA','Dir.Zonal'];
+    const r=filteredSales.map(s=>[s.offerNumber||'',s.clientName||'',s.status||'',
+        s.agentName||'',s.offerDate||'',s.totalWithVat||'',s.directorZonalId||'']);
+    const csv=[h,...r].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));
+    a.download=`raport_avansat_${new Date().toLocaleDateString('ro-RO').replace(/\./g,'-')}.csv`;
+    a.click(); toast('✅ Export realizat!');
+};
+
+window.showTab('evolutie');
+</script>
+</body>
+</html>
